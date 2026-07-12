@@ -11,13 +11,21 @@
         :root {
             --primary-blue: #0077ff;
             --primary-orange: #ff7700;
-            --bg-color: #121418;
-            --panel-bg: #1e222a;
+            --bg-color: #0d0f12;
+            --panel-bg: rgba(30, 34, 42, 0.6);
+            --panel-border: rgba(255, 255, 255, 0.05);
             --text-color: #ffffff;
             --text-muted: #aaaaaa;
             
             --c-r1: #ff4444; --c-r2: #ff0000; --c-r3: #bb0000;
             --c-b1: #66b3ff; --c-b2: #0055ff; --c-b3: #0000bb;
+
+            /* "AI Look" Variables */
+            --radius-large: 24px;
+            --radius-medium: 16px;
+            --radius-pill: 9999px;
+            --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 15px rgba(0, 119, 255, 0.3);
         }
 
         * {
@@ -28,6 +36,7 @@
         body {
             margin: 0;
             background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, #1a2332 0%, var(--bg-color) 70%);
             color: var(--text-color);
             display: flex;
             flex-direction: column;
@@ -37,31 +46,43 @@
 
         /* Navbar & Tabs */
         header {
-            background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-orange) 100%);
-            padding: 15px 20px;
+            background: linear-gradient(135deg, rgba(0, 119, 255, 0.8) 0%, rgba(255, 119, 0, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            margin: 15px 20px;
+            padding: 15px 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            border-radius: var(--radius-large);
+            box-shadow: var(--shadow-soft);
             z-index: 10;
         }
 
-        h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+        h1 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+        }
 
         .tab-buttons button {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255,255,255,0.1);
             color: white;
-            padding: 8px 16px;
-            margin-left: 10px;
+            padding: 10px 20px;
             cursor: pointer;
-            border-radius: 4px;
-            transition: 0.3s;
+            border-radius: var(--radius-pill);
+            transition: all 0.3s ease;
+            font-size: 13px;
+            letter-spacing: 0.5px;
         }
 
         .tab-buttons button.active, .tab-buttons button:hover {
-            background: var(--bg-color);
-            border-color: white;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
         }
 
         /* Main Layout */
@@ -69,137 +90,271 @@
             display: flex;
             flex: 1;
             overflow: hidden;
+            padding: 0 20px 20px 20px;
+            gap: 20px;
         }
 
         .sidebar {
-            width: 320px;
-            background-color: var(--panel-bg);
-            padding: 20px;
+            width: 340px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 25px;
             overflow-y: auto;
-            border-right: 2px solid #333;
+            border-radius: var(--radius-large);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sidebar h2 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            font-size: 18px;
+            color: var(--primary-blue);
+            text-shadow: var(--shadow-glow);
         }
 
         .main-content {
             flex: 1;
-            padding: 20px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 25px;
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
             overflow-y: auto;
+            border-radius: var(--radius-large);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--shadow-soft);
         }
 
         /* Forms & Inputs */
-        label { display: block; margin-top: 15px; margin-bottom: 5px; color: var(--text-muted); font-size: 14px;}
+        label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; letter-spacing: 0.5px;}
+        
         input, select {
             width: 100%;
-            padding: 10px;
-            background: #000;
-            border: 1px solid #444;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
-            border-radius: 4px;
+            border-radius: var(--radius-medium);
             outline: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
         }
-        input:focus, select:focus { border-color: var(--primary-orange); }
+        
+        input:focus, select:focus { 
+            border-color: var(--primary-blue); 
+            box-shadow: 0 0 10px rgba(0, 119, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+        }
 
         button.action-btn {
             width: 100%;
-            padding: 12px;
-            margin-top: 15px;
-            background-color: var(--primary-blue);
+            padding: 14px;
+            background: linear-gradient(135deg, #005ce6 0%, var(--primary-blue) 100%);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: var(--radius-pill);
             cursor: pointer;
             text-transform: uppercase;
             font-weight: bold;
-            transition: 0.2s;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 119, 255, 0.3);
         }
-        button.action-btn:hover { background-color: #005ce6; }
-        button.action-btn.orange { background-color: var(--primary-orange); }
-        button.action-btn.orange:hover { background-color: #e66a00; }
+        
+        button.action-btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 119, 255, 0.5);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, #3399ff 100%);
+        }
+        
+        button.action-btn.orange { 
+            background: linear-gradient(135deg, #e66a00 0%, var(--primary-orange) 100%);
+            box-shadow: 0 4px 15px rgba(255, 119, 0, 0.3);
+        }
+        
+        button.action-btn.orange:hover { 
+            background: linear-gradient(135deg, var(--primary-orange) 0%, #ff9933 100%);
+            box-shadow: 0 6px 20px rgba(255, 119, 0, 0.5);
+        }
 
         /* Canvas Elements */
-        #canvas-wrapper {
+        #canvas-wrapper, #canvas-wrapper-db {
             position: relative;
             max-width: 100%;
             display: inline-block;
-            border: 2px solid #444;
-            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-large);
             overflow: hidden;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+            transition: transform 0.3s ease;
         }
 
         canvas {
             display: block;
             cursor: crosshair;
             max-width: 100%;
-            background-color: #333;
+            background-color: #1a1a1a;
         }
 
         .toolbar {
             display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 15px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
             justify-content: center;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: var(--radius-pill);
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
         .color-btn {
-            width: 40px; height: 40px;
+            width: 45px; height: 45px;
             border-radius: 50%;
-            border: 2px solid transparent;
+            border: 2px solid rgba(255,255,255,0.1);
             cursor: pointer;
             display: flex;
             align-items: center; justify-content: center;
             font-size: 12px; font-weight: bold;
-            color: white; text-shadow: 1px 1px 2px black;
+            color: white; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .color-btn.active { border-color: white; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
         
-        .c-r1 { background: var(--c-r1); } .c-r2 { background: var(--c-r2); } .c-r3 { background: var(--c-r3); }
-        .c-b1 { background: var(--c-b1); } .c-b2 { background: var(--c-b2); } .c-b3 { background: var(--c-b3); }
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-btn.active { 
+            border-color: white; 
+            box-shadow: 0 0 15px currentColor;
+            transform: scale(1.15);
+        }
+        
+        .c-r1 { background: var(--c-r1); color: var(--c-r1); } 
+        .c-r2 { background: var(--c-r2); color: var(--c-r2); } 
+        .c-r3 { background: var(--c-r3); color: var(--c-r3); }
+        .c-b1 { background: var(--c-b1); color: var(--c-b1); } 
+        .c-b2 { background: var(--c-b2); color: var(--c-b2); } 
+        .c-b3 { background: var(--c-b3); color: var(--c-b3); }
+        
+        .color-btn { color: white !important; }
 
         /* API Status */
         #api-status {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 5px;
-            text-align: right;
+            font-size: 11px;
+            color: var(--primary-blue);
+            margin-top: -5px;
+            text-align: center;
+            background: rgba(0, 119, 255, 0.1);
+            padding: 8px;
+            border-radius: var(--radius-pill);
+            border: 1px solid rgba(0, 119, 255, 0.2);
+            word-wrap: break-word;
         }
 
         /* Match Info Display */
         .match-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 10px;
         }
-        .alliance-box { padding: 10px; border-radius: 4px; border: 1px solid #444;}
-        .red-alliance { background: rgba(255,0,0,0.1); border-color: rgba(255,0,0,0.3); }
-        .blue-alliance { background: rgba(0,0,255,0.1); border-color: rgba(0,0,255,0.3); }
         
-        .team-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; align-items: center;}
+        .alliance-box { 
+            padding: 15px; 
+            border-radius: var(--radius-medium); 
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+        
+        .red-alliance { 
+            background: linear-gradient(135deg, rgba(255,0,0,0.1) 0%, rgba(255,0,0,0.02) 100%); 
+            border-left: 4px solid var(--c-r1);
+        }
+        
+        .blue-alliance { 
+            background: linear-gradient(135deg, rgba(0,0,255,0.1) 0%, rgba(0,0,255,0.02) 100%); 
+            border-left: 4px solid var(--c-b2);
+        }
+        
+        .team-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px; 
+            font-size: 13px; 
+            align-items: center;
+        }
+        
+        .team-row:last-child { margin-bottom: 0; }
         
         /* Auto Cycling Buttons */
         .cycle-auto-btn {
-            background: #333; border: 1px solid #555; color: white;
-            font-size: 10px; padding: 2px 6px; cursor: pointer; border-radius: 3px;
+            background: rgba(255,255,255,0.1); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            color: white;
+            font-size: 10px; 
+            padding: 4px 10px; 
+            cursor: pointer; 
+            border-radius: var(--radius-pill);
+            transition: all 0.2s;
         }
-        .cycle-auto-btn:hover { background: var(--primary-orange); }
+        
+        .cycle-auto-btn:hover { 
+            background: var(--primary-orange); 
+            border-color: var(--primary-orange);
+            box-shadow: 0 2px 8px rgba(255, 119, 0, 0.4);
+        }
 
         /* QR Code Modal */
         #qr-container {
-            margin-top: 20px;
-            background: white; padding: 15px; border-radius: 8px;
-            display: none; justify-content: center; align-items: center;
+            margin-top: auto;
+            background: white; 
+            padding: 20px; 
+            border-radius: var(--radius-medium);
+            display: none; 
+            justify-content: center; 
+            align-items: center;
             flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: popIn 0.3s ease-out forwards;
         }
-        #qr-container p { color: black; font-size: 12px; text-align: center;}
+        
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        #qr-container p { 
+            color: #333; 
+            font-size: 13px; 
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0 0 0;
+            font-family: sans-serif;
+        }
 
         /* Tab Content Control */
-        .tab-content { display: none; width: 100%; height: 100%; }
-        .tab-content.active { display: flex; }
+        .tab-content { display: none; width: 100%; height: 100%; gap: 20px; }
+        .tab-content.active { display: flex; animation: fadeIn 0.4s ease-out; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 
     </style>
     <!-- QR Code Library via CDN -->
@@ -222,23 +377,31 @@
         <div id="tab-setup" class="tab-content">
             <div class="sidebar">
                 <h2>Statbotics Sync</h2>
-                <p style="font-size:12px; color:var(--text-muted);">Syncs event matches and team EPA data. Auto-updates every 5 minutes in background.</p>
-                <label>Event Code (e.g., 2024txhou)</label>
-                <input type="text" id="event-code-input" placeholder="Event Code">
-                <button class="action-btn" onclick="fetchStatboticsData()">Manual Fetch Data</button>
-                <div id="api-status">Status: Waiting</div>
+                <p style="font-size:12px; color:var(--text-muted); line-height: 1.5;">Syncs event matches and team EPA data. Auto-updates every 5 minutes in background.</p>
+                
+                <div>
+                    <label>Event Code (e.g., 2024txhou)</label>
+                    <input type="text" id="event-code-input" placeholder="Event Code">
+                </div>
+                
+                <button class="action-btn" onclick="fetchStatboticsData()">Sync Data</button>
+                <div id="api-status">Status: Waiting for Input</div>
             </div>
             <div class="main-content" style="justify-content: center;">
-                <h1 style="color: var(--text-muted); opacity: 0.5;">Enter an event code to pull match data.</h1>
+                <h1 style="color: var(--text-muted); opacity: 0.3; font-size: 28px;">Connect to Statbotics</h1>
+                <p style="color: var(--text-muted); opacity: 0.5;">Enter an event code in the panel to begin pulling match data.</p>
             </div>
         </div>
 
         <!-- ================= MATCH STRATEGY TAB ================= -->
         <div id="tab-strategy" class="tab-content active">
             <div class="sidebar">
-                <h2>Strategy Planner</h2>
-                <label>Select Match</label>
-                <select id="match-selector" onchange="loadMatchData()"></select>
+                <h2>Strategy Board</h2>
+                
+                <div>
+                    <label>Select Match</label>
+                    <select id="match-selector" onchange="loadMatchData()"></select>
+                </div>
 
                 <div class="match-info-grid">
                     <div class="alliance-box red-alliance" id="red-alliance-info">
@@ -249,14 +412,17 @@
                     </div>
                 </div>
 
-                <button class="action-btn orange" onclick="clearCanvas()">Clear Drawing</button>
-                <button class="action-btn" onclick="undoLastStroke()">Undo Last</button>
-                <button class="action-btn" onclick="downloadFieldImage()">Download Image</button>
-                <button class="action-btn orange" onclick="generateQR()">Generate QR Code</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="action-btn orange" onclick="clearCanvas()" style="font-size: 11px; padding: 12px;">Clear</button>
+                    <button class="action-btn" onclick="undoLastStroke()" style="font-size: 11px; padding: 12px;">Undo</button>
+                </div>
+                
+                <button class="action-btn" onclick="downloadFieldImage()">Export Image</button>
+                <button class="action-btn orange" onclick="generateQR()">Generate QR</button>
 
                 <div id="qr-container">
                     <div id="qrcode"></div>
-                    <p>Scan to view path data</p>
+                    <p>SCAN TO VIEW PATHS</p>
                 </div>
             </div>
             
@@ -279,26 +445,30 @@
         <!-- ================= AUTO DB COLLECTION TAB ================= -->
         <div id="tab-db" class="tab-content">
             <div class="sidebar">
-                <h2>Pre-Match Auto DB</h2>
-                <p style="font-size:12px; color:var(--text-muted);">Draw and save up to 3 anticipated autos per team.</p>
+                <h2>Path Database</h2>
+                <p style="font-size:12px; color:var(--text-muted); line-height: 1.5;">Draw and save up to 3 anticipated autonomous paths per team for pre-match strategy.</p>
                 
-                <label>Team Number</label>
-                <input type="number" id="db-team-input" placeholder="e.g. 254" onchange="loadDBTeam()">
+                <div>
+                    <label>Target Team Number</label>
+                    <input type="number" id="db-team-input" placeholder="e.g. 254" onchange="loadDBTeam()">
+                </div>
                 
-                <label>Auto Slot</label>
-                <select id="db-slot-input" onchange="loadDBTeam()">
-                    <option value="1">Auto Path 1</option>
-                    <option value="2">Auto Path 2</option>
-                    <option value="3">Auto Path 3</option>
-                </select>
+                <div>
+                    <label>Memory Slot</label>
+                    <select id="db-slot-input" onchange="loadDBTeam()">
+                        <option value="1">Routine Alpha (Slot 1)</option>
+                        <option value="2">Routine Beta (Slot 2)</option>
+                        <option value="3">Routine Gamma (Slot 3)</option>
+                    </select>
+                </div>
 
-                <button class="action-btn" onclick="saveAutoToDB()">Save to DB</button>
-                <button class="action-btn orange" onclick="clearDBCanvas()">Clear Editor</button>
+                <button class="action-btn" onclick="saveAutoToDB()">Save to Memory</button>
+                <button class="action-btn orange" onclick="clearDBCanvas()">Clear Canvas</button>
             </div>
             
             <div class="main-content">
                  <div class="toolbar">
-                    <div class="color-btn active" style="background:#fff; color:#000;" data-team="DB" data-color="#ffffff" onclick="setColor(this)">Draw</div>
+                    <div class="color-btn active" style="background: linear-gradient(135deg, #fff, #ddd); color:#000 !important; width: 60px; border-radius: var(--radius-pill);" data-team="DB" data-color="#ffffff" onclick="setColor(this)">DRAW</div>
                 </div>
                 <div id="canvas-wrapper-db">
                     <canvas id="db-canvas" width="1200" height="600"></canvas>
@@ -397,11 +567,18 @@
                 context.lineWidth = 4;
                 context.lineJoin = "round";
                 context.lineCap = "round";
+                // Slight shadow for AI glowing line effect
+                context.shadowColor = currentDrawColor;
+                context.shadowBlur = 8;
+                
                 context.moveTo(currentStroke[0].x, currentStroke[0].y);
                 for (let i = 1; i < currentStroke.length; i++) {
                     context.lineTo(currentStroke[i].x, currentStroke[i].y);
                 }
                 context.stroke();
+                
+                // Reset shadow so it doesn't affect images
+                context.shadowBlur = 0;
             };
 
             const stopDraw = () => {
@@ -438,7 +615,7 @@
             if (fieldImage.complete && fieldImage.naturalHeight !== 0) {
                 context.drawImage(fieldImage, 0, 0, context.canvas.width, context.canvas.height);
             } else {
-                context.fillStyle = '#333';
+                context.fillStyle = '#1a1a1a';
                 context.fillRect(0, 0, context.canvas.width, context.canvas.height);
                 context.fillStyle = '#fff';
                 context.font = "20px Arial";
@@ -453,11 +630,18 @@
                 context.lineWidth = 4;
                 context.lineJoin = "round";
                 context.lineCap = "round";
+                
+                // Glowing line effect
+                context.shadowColor = stroke.color;
+                context.shadowBlur = 8;
+
                 context.moveTo(stroke.points[0].x, stroke.points[0].y);
                 for (let i = 1; i < stroke.points.length; i++) {
                     context.lineTo(stroke.points[i].x, stroke.points[i].y);
                 }
                 context.stroke();
+                
+                context.shadowBlur = 0; // reset
             });
         }
 
@@ -467,24 +651,46 @@
 
         // API Integration (Statbotics)
         async function fetchStatboticsData(isBackground = false) {
-            const code = document.getElementById('event-code-input').value.trim() || eventCode;
+            // Force lowercase as Statbotics API requires it (e.g., 2024txhou)
+            let rawCode = document.getElementById('event-code-input').value.trim() || eventCode;
+            const code = rawCode.toLowerCase(); 
+
             if(!code) return alert("Enter an event code.");
             
             const statusEl = document.getElementById('api-status');
             statusEl.innerText = "Status: Fetching...";
+            statusEl.style.color = "var(--primary-orange)";
 
             try {
-                // Fetch Teams Data
-                const teamsRes = await fetch(`https://api.statbotics.io/v3/team_events?event=${code}`);
-                const teamsJson = await teamsRes.json();
+                // Fetch Teams Data with enhanced error catching
+                const teamsUrl = `https://api.statbotics.io/v3/team_events?event=${code}`;
+                const teamsRes = await fetch(teamsUrl, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    mode: 'cors' 
+                });
                 
+                if (!teamsRes.ok) {
+                    throw new Error(`Teams API failed: ${teamsRes.status} ${teamsRes.statusText}. Code might be invalid.`);
+                }
+                
+                const teamsJson = await teamsRes.json();
                 teamsData = {};
                 teamsJson.forEach(t => { teamsData[t.team] = t.epa ? t.epa.total_points.mean : 0; });
                 
                 // Fetch Matches Data
-                const matchesRes = await fetch(`https://api.statbotics.io/v3/matches?event=${code}`);
-                const matchesJson = await matchesRes.json();
+                const matchesUrl = `https://api.statbotics.io/v3/matches?event=${code}`;
+                const matchesRes = await fetch(matchesUrl, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    mode: 'cors'
+                });
                 
+                if (!matchesRes.ok) {
+                    throw new Error(`Matches API failed: ${matchesRes.status} ${matchesRes.statusText}`);
+                }
+
+                const matchesJson = await matchesRes.json();
                 matchesData = matchesJson.sort((a,b) => a.match_number - b.match_number);
                 
                 // Save state
@@ -494,15 +700,23 @@
                 localStorage.setItem('frc_teams_data', JSON.stringify(teamsData));
 
                 statusEl.innerText = `Status: Synced at ${new Date().toLocaleTimeString()}`;
+                statusEl.style.color = "#00ff88"; // Success green
                 
                 if(!isBackground) {
                     populateMatchSelector();
                     alert("Data synced successfully!");
                 }
             } catch (err) {
-                console.error(err);
-                statusEl.innerText = "Status: Error Fetching Data";
-                if(!isBackground) alert("Failed to fetch data from Statbotics.");
+                console.error("Statbotics API Error: ", err);
+                // Print exact error to UI so you don't have to check console
+                statusEl.innerText = err.message.includes("Failed to fetch") 
+                    ? "Status: Network Error (Check Adblocker/CORS)" 
+                    : `Status: ${err.message}`;
+                statusEl.style.color = "#ff4444";
+                
+                if(!isBackground) {
+                    alert(`Failed to fetch data.\n\nReason: ${err.message}\n\nIf it says "Failed to fetch", please check your browser adblocker or try hosting the file locally.`);
+                }
             }
         }
 
@@ -531,7 +745,7 @@
             activeMatch = matchesData[selector.value];
             if(!activeMatch) return;
 
-            // Statbotics v3 usually has red_1, red_2, red_3, blue_1, blue_2, blue_3 directly.
+            // Statbotics v3 structure
             const r1 = activeMatch.red_1 || activeMatch.red_1_team || "???";
             const r2 = activeMatch.red_2 || activeMatch.red_2_team || "???";
             const r3 = activeMatch.red_3 || activeMatch.red_3_team || "???";
@@ -543,8 +757,8 @@
                 const epa = teamsData[teamNum] ? teamsData[teamNum].toFixed(1) : 'N/A';
                 return `
                     <div class="team-row">
-                        <span><strong>${allianceId}:</strong> ${teamNum} (EPA: ${epa})</span>
-                        <button class="cycle-auto-btn" onclick="cycleAutoIntoStrategy('${allianceId}', '${teamNum}', '${colorCode}')">Cycle Auto</button>
+                        <span><strong>${allianceId}:</strong> ${teamNum} <span style="color:var(--text-muted); font-size:11px;">(EPA: ${epa})</span></span>
+                        <button class="cycle-auto-btn" onclick="cycleAutoIntoStrategy('${allianceId}', '${teamNum}', '${colorCode}')">Load Auto</button>
                     </div>`;
             };
 
@@ -567,6 +781,7 @@
             document.querySelector('.c-b3').innerText = b3;
             
             clearCanvas();
+            document.getElementById('qr-container').style.display = 'none';
         }
 
         // DB Operations
@@ -581,7 +796,7 @@
             autosDB[team][slot] = JSON.parse(JSON.stringify(dbPaths)); // deep copy
             
             localStorage.setItem('frc_autos_db', JSON.stringify(autosDB));
-            alert(`Saved to Team ${team} Auto Slot ${slot}`);
+            alert(`Saved to Team ${team} Memory Slot ${slot}`);
         }
 
         function loadDBTeam() {
@@ -599,7 +814,7 @@
         const autoCycleState = {}; 
 
         function cycleAutoIntoStrategy(allianceId, teamNum, colorCode) {
-            if(!autosDB[teamNum]) return alert(`No autos saved in DB for team ${teamNum}`);
+            if(!autosDB[teamNum]) return alert(`No paths found in Memory for team ${teamNum}`);
             
             if(!autoCycleState[teamNum]) autoCycleState[teamNum] = 1;
             else autoCycleState[teamNum] = autoCycleState[teamNum] === 3 ? 1 : autoCycleState[teamNum] + 1;
@@ -622,9 +837,8 @@
                 });
                 
                 redrawCanvas(ctx, paths);
-                alert(`Loaded Auto Slot ${slot} for Team ${teamNum}`);
             } else {
-                alert(`Auto Slot ${slot} for Team ${teamNum} is empty. Cycling...`);
+                alert(`Memory Slot ${slot} for Team ${teamNum} is empty. Cycling...`);
             }
         }
 
@@ -666,14 +880,14 @@
             try {
                 new QRCode(qrDiv, {
                     text: dataStr,
-                    width: 256,
-                    height: 256,
+                    width: 220,
+                    height: 220,
                     colorDark : "#000000",
                     colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.L // Lowest error correction allows more data
                 });
             } catch (e) {
-                qrDiv.innerHTML = '<span style="color:red; font-size:12px;">Drawing too complex for QR code. Please simplify.</span>';
+                qrDiv.innerHTML = '<span style="color:#ff4444; font-size:12px; text-align:center;">Drawing too complex for QR code.<br>Please simplify paths.</span>';
             }
         }
 
