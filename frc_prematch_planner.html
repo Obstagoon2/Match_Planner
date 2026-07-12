@@ -3102,28 +3102,53 @@ async function pullEventData(code, opts){
   code = (code||"").trim().toLowerCase();
   if(!code){ toast("Enter an event code first.", "err"); return; }
   setLive(false, opts.silent ? "Refreshing…" : "Pulling…");
-  try{
-    const [teamsRaw, matchesRaw] = await Promise.all([
-      apiGet(`/team_events?event=${encodeURIComponent(code)}&limit=200`),
-      apiGet(`/matches?event=${encodeURIComponent(code)}&limit=200`)
-    ]);
-    state.teams = normalizeTeams(teamsRaw);
-    state.matches = normalizeMatches(matchesRaw);
+
+  // Fire both requests independently so a failure on one (e.g. an event with
+  // no match schedule posted yet) doesn't wipe out data that DID come back.
+  const [teamsResult, matchesResult] = await Promise.allSettled([
+    apiGet(`/team_events?event=${encodeURIComponent(code)}&limit=200`),
+    apiGet(`/matches?event=${encodeURIComponent(code)}&limit=200`)
+  ]);
+
+  let gotAnything = false;
+  const problems = [];
+
+  if(teamsResult.status === "fulfilled"){
+    state.teams = normalizeTeams(teamsResult.value);
+    lsSet(LS.teams, state.teams);
+    gotAnything = true;
+  } else {
+    problems.push("teams: " + teamsResult.reason.message);
+  }
+
+  if(matchesResult.status === "fulfilled"){
+    state.matches = normalizeMatches(matchesResult.value);
+    lsSet(LS.matches, state.matches);
+    gotAnything = true;
+  } else {
+    problems.push("matches: " + matchesResult.reason.message);
+  }
+
+  if(gotAnything){
     state.lastUpdate = Date.now();
     state.eventCode = code;
-    lsSet(LS.teams, state.teams);
-    lsSet(LS.matches, state.matches);
     lsSet(LS.lastUpdate, state.lastUpdate);
     lsSet(LS.eventCode, state.eventCode);
-    renderEventTab();
-    populateMatchSelect();
-    refreshStatusStrip();
+  }
+
+  renderEventTab();
+  populateMatchSelect();
+  refreshStatusStrip();
+
+  if(!problems.length){
     setLive(true);
     if(!opts.silent) toast(`Loaded ${state.teams.length} teams / ${state.matches.length} matches for ${code.toUpperCase()}`, "ok");
-  }catch(err){
-    console.error(err);
+  } else if(gotAnything){
+    setLive(true, "Partial sync");
+    if(!opts.silent) toast(`Partial data for ${code.toUpperCase()} — ${problems.join(" · ")}. Double-check the event code (e.g. 2026mosl, not a guessed abbreviation) and that its schedule is posted.`, "err");
+  } else {
     setLive(false, "Sync failed");
-    if(!opts.silent) toast("Couldn't reach Statbotics: " + err.message, "err");
+    if(!opts.silent) toast(`Couldn't reach Statbotics for "${code.toUpperCase()}" — ${problems.join(" · ")}. Verify the event code on statbotics.io/event/${code} first.`, "err");
   }
 }
 
