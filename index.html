@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRC Auto Path Planner</title>
+    <!-- Nasalization Font -->
+    <style>
+        @import url('https://fonts.cdnfonts.com/css/nasalization-rg');
+
+        :root {
+            --primary-blue: #0077ff;
+            --primary-orange: #ff7700;
+            --bg-color: #121418;
+            --panel-bg: #1e222a;
+            --text-color: #ffffff;
+            --text-muted: #aaaaaa;
+            
+            --c-r1: #ff4444; --c-r2: #ff0000; --c-r3: #bb0000;
+            --c-b1: #66b3ff; --c-b2: #0055ff; --c-b3: #0000bb;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Nasalization', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Navbar & Tabs */
+        header {
+            background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-orange) 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .tab-buttons button {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            margin-left: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: 0.3s;
+        }
+
+        .tab-buttons button.active, .tab-buttons button:hover {
+            background: var(--bg-color);
+            border-color: white;
+        }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #333;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        /* Forms & Inputs */
+        label { display: block; margin-top: 15px; margin-bottom: 5px; color: var(--text-muted); font-size: 14px;}
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: #000;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--primary-orange); }
+
+        button.action-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        button.action-btn:hover { background-color: #005ce6; }
+        button.action-btn.orange { background-color: var(--primary-orange); }
+        button.action-btn.orange:hover { background-color: #e66a00; }
+
+        /* Canvas Elements */
+        #canvas-wrapper {
+            position: relative;
+            max-width: 100%;
+            display: inline-block;
+            border: 2px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+            max-width: 100%;
+            background-color: #333;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .color-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold;
+            color: white; text-shadow: 1px 1px 2px black;
+        }
+        .color-btn.active { border-color: white; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        
+        .c-r1 { background: var(--c-r1); } .c-r2 { background: var(--c-r2); } .c-r3 { background: var(--c-r3); }
+        .c-b1 { background: var(--c-b1); } .c-b2 { background: var(--c-b2); } .c-b3 { background: var(--c-b3); }
+
+        /* API Status */
+        #api-status {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        /* Match Info Display */
+        .match-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .alliance-box { padding: 10px; border-radius: 4px; border: 1px solid #444;}
+        .red-alliance { background: rgba(255,0,0,0.1); border-color: rgba(255,0,0,0.3); }
+        .blue-alliance { background: rgba(0,0,255,0.1); border-color: rgba(0,0,255,0.3); }
+        
+        .team-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; align-items: center;}
+        
+        /* Auto Cycling Buttons */
+        .cycle-auto-btn {
+            background: #333; border: 1px solid #555; color: white;
+            font-size: 10px; padding: 2px 6px; cursor: pointer; border-radius: 3px;
+        }
+        .cycle-auto-btn:hover { background: var(--primary-orange); }
+
+        /* QR Code Modal */
+        #qr-container {
+            margin-top: 20px;
+            background: white; padding: 15px; border-radius: 8px;
+            display: none; justify-content: center; align-items: center;
+            flex-direction: column;
+        }
+        #qr-container p { color: black; font-size: 12px; text-align: center;}
+
+        /* Tab Content Control */
+        .tab-content { display: none; width: 100%; height: 100%; }
+        .tab-content.active { display: flex; }
+
+    </style>
+    <!-- QR Code Library via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>FRC Auto Planner</h1>
+        <div class="tab-buttons">
+            <button class="active" onclick="switchTab('strategy')">Match Strategy</button>
+            <button onclick="switchTab('db')">Auto DB Collection</button>
+            <button onclick="switchTab('setup')">API Setup</button>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <!-- ================= SETUP TAB ================= -->
+        <div id="tab-setup" class="tab-content">
+            <div class="sidebar">
+                <h2>Statbotics Sync</h2>
+                <p style="font-size:12px; color:var(--text-muted);">Syncs event matches and team EPA data. Auto-updates every 5 minutes in background.</p>
+                <label>Event Code (e.g., 2024txhou)</label>
+                <input type="text" id="event-code-input" placeholder="Event Code">
+                <button class="action-btn" onclick="fetchStatboticsData()">Manual Fetch Data</button>
+                <div id="api-status">Status: Waiting</div>
+            </div>
+            <div class="main-content" style="justify-content: center;">
+                <h1 style="color: var(--text-muted); opacity: 0.5;">Enter an event code to pull match data.</h1>
+            </div>
+        </div>
+
+        <!-- ================= MATCH STRATEGY TAB ================= -->
+        <div id="tab-strategy" class="tab-content active">
+            <div class="sidebar">
+                <h2>Strategy Planner</h2>
+                <label>Select Match</label>
+                <select id="match-selector" onchange="loadMatchData()"></select>
+
+                <div class="match-info-grid">
+                    <div class="alliance-box red-alliance" id="red-alliance-info">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="alliance-box blue-alliance" id="blue-alliance-info">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <button class="action-btn orange" onclick="clearCanvas()">Clear Drawing</button>
+                <button class="action-btn" onclick="undoLastStroke()">Undo Last</button>
+                <button class="action-btn" onclick="downloadFieldImage()">Download Image</button>
+                <button class="action-btn orange" onclick="generateQR()">Generate QR Code</button>
+
+                <div id="qr-container">
+                    <div id="qrcode"></div>
+                    <p>Scan to view path data</p>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div class="toolbar" id="strategy-toolbar">
+                    <div class="color-btn c-r1 active" data-team="R1" data-color="#ff4444" onclick="setColor(this)">R1</div>
+                    <div class="color-btn c-r2" data-team="R2" data-color="#ff0000" onclick="setColor(this)">R2</div>
+                    <div class="color-btn c-r3" data-team="R3" data-color="#bb0000" onclick="setColor(this)">R3</div>
+                    <div class="color-btn c-b1" data-team="B1" data-color="#66b3ff" onclick="setColor(this)">B1</div>
+                    <div class="color-btn c-b2" data-team="B2" data-color="#0055ff" onclick="setColor(this)">B2</div>
+                    <div class="color-btn c-b3" data-team="B3" data-color="#0000bb" onclick="setColor(this)">B3</div>
+                </div>
+                
+                <div id="canvas-wrapper">
+                    <canvas id="field-canvas" width="1200" height="600"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= AUTO DB COLLECTION TAB ================= -->
+        <div id="tab-db" class="tab-content">
+            <div class="sidebar">
+                <h2>Pre-Match Auto DB</h2>
+                <p style="font-size:12px; color:var(--text-muted);">Draw and save up to 3 anticipated autos per team.</p>
+                
+                <label>Team Number</label>
+                <input type="number" id="db-team-input" placeholder="e.g. 254" onchange="loadDBTeam()">
+                
+                <label>Auto Slot</label>
+                <select id="db-slot-input" onchange="loadDBTeam()">
+                    <option value="1">Auto Path 1</option>
+                    <option value="2">Auto Path 2</option>
+                    <option value="3">Auto Path 3</option>
+                </select>
+
+                <button class="action-btn" onclick="saveAutoToDB()">Save to DB</button>
+                <button class="action-btn orange" onclick="clearDBCanvas()">Clear Editor</button>
+            </div>
+            
+            <div class="main-content">
+                 <div class="toolbar">
+                    <div class="color-btn active" style="background:#fff; color:#000;" data-team="DB" data-color="#ffffff" onclick="setColor(this)">Draw</div>
+                </div>
+                <div id="canvas-wrapper-db">
+                    <canvas id="db-canvas" width="1200" height="600"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global State & Configuration
+        const FIELD_IMAGE_SRC = 'FE-2026-_REBUILT_Playing_Field_With_Background.jpg';
+        let eventCode = localStorage.getItem('frc_event_code') || '';
+        let matchesData = JSON.parse(localStorage.getItem('frc_matches_data')) || [];
+        let teamsData = JSON.parse(localStorage.getItem('frc_teams_data')) || {};
+        let autosDB = JSON.parse(localStorage.getItem('frc_autos_db')) || {}; // Structure: { "254": { "1": [...strokes], "2": [], "3": [] } }
+        
+        let activeMatch = null;
+        let activeTab = 'strategy';
+        
+        // Canvas & Drawing State
+        let canvas, ctx, dbCanvas, dbCtx;
+        let fieldImage = new Image();
+        
+        let isDrawing = false;
+        let currentStroke = [];
+        let paths = []; // Strategy paths: { teamId, color, points: [] }
+        let dbPaths = []; // DB paths
+        
+        let currentDrawTeam = 'R1';
+        let currentDrawColor = '#ff4444';
+
+        // Initialization
+        window.onload = () => {
+            canvas = document.getElementById('field-canvas');
+            ctx = canvas.getContext('2d');
+            dbCanvas = document.getElementById('db-canvas');
+            dbCtx = dbCanvas.getContext('2d');
+
+            fieldImage.onload = () => { redrawCanvas(ctx, paths); redrawCanvas(dbCtx, dbPaths); };
+            fieldImage.src = FIELD_IMAGE_SRC;
+
+            setupCanvasListeners(canvas, ctx, paths);
+            setupCanvasListeners(dbCanvas, dbCtx, dbPaths);
+
+            if (eventCode) {
+                document.getElementById('event-code-input').value = eventCode;
+                populateMatchSelector();
+            }
+
+            // Start background API sync (5 minutes)
+            setInterval(() => {
+                if(eventCode) fetchStatboticsData(true);
+            }, 5 * 60 * 1000); 
+
+            switchTab('strategy');
+        };
+
+        // UI & Tab Management
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-buttons button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            event.target.classList.add('active');
+            activeTab = tabId;
+
+            if(tabId === 'strategy' && activeMatch) loadMatchData();
+            if(tabId === 'db') loadDBTeam();
+        }
+
+        function setColor(btn) {
+            let container = btn.parentElement;
+            container.querySelectorAll('.color-btn').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            currentDrawTeam = btn.getAttribute('data-team');
+            currentDrawColor = btn.getAttribute('data-color');
+        }
+
+        // Canvas Drawing Logic
+        function setupCanvasListeners(c, context, pathStorage) {
+            const startDraw = (e) => {
+                isDrawing = true;
+                const pos = getMousePos(c, e);
+                currentStroke = [pos];
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const pos = getMousePos(c, e);
+                currentStroke.push(pos);
+                
+                redrawCanvas(context, pathStorage);
+                context.beginPath();
+                context.strokeStyle = currentDrawColor;
+                context.lineWidth = 4;
+                context.lineJoin = "round";
+                context.lineCap = "round";
+                context.moveTo(currentStroke[0].x, currentStroke[0].y);
+                for (let i = 1; i < currentStroke.length; i++) {
+                    context.lineTo(currentStroke[i].x, currentStroke[i].y);
+                }
+                context.stroke();
+            };
+
+            const stopDraw = () => {
+                if (isDrawing && currentStroke.length > 0) {
+                    pathStorage.push({ team: currentDrawTeam, color: currentDrawColor, points: currentStroke });
+                }
+                isDrawing = false;
+                redrawCanvas(context, pathStorage);
+            };
+
+            c.addEventListener('mousedown', startDraw);
+            c.addEventListener('mousemove', draw);
+            c.addEventListener('mouseup', stopDraw);
+            c.addEventListener('mouseout', stopDraw);
+
+            // Touch support
+            c.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e.touches[0]); }, {passive: false});
+            c.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }, {passive: false});
+            c.addEventListener('touchend', stopDraw);
+        }
+
+        function getMousePos(c, evt) {
+            const rect = c.getBoundingClientRect();
+            const scaleX = c.width / rect.width;
+            const scaleY = c.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        function redrawCanvas(context, pathStorage) {
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+            if (fieldImage.complete && fieldImage.naturalHeight !== 0) {
+                context.drawImage(fieldImage, 0, 0, context.canvas.width, context.canvas.height);
+            } else {
+                context.fillStyle = '#333';
+                context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+                context.fillStyle = '#fff';
+                context.font = "20px Arial";
+                context.fillText("Loading Field Image...", 20, 40);
+            }
+
+            // Draw paths
+            pathStorage.forEach(stroke => {
+                if(stroke.points.length === 0) return;
+                context.beginPath();
+                context.strokeStyle = stroke.color;
+                context.lineWidth = 4;
+                context.lineJoin = "round";
+                context.lineCap = "round";
+                context.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    context.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                context.stroke();
+            });
+        }
+
+        function clearCanvas() { paths = []; redrawCanvas(ctx, paths); }
+        function undoLastStroke() { paths.pop(); redrawCanvas(ctx, paths); }
+        function clearDBCanvas() { dbPaths = []; redrawCanvas(dbCtx, dbPaths); }
+
+        // API Integration (Statbotics)
+        async function fetchStatboticsData(isBackground = false) {
+            const code = document.getElementById('event-code-input').value.trim() || eventCode;
+            if(!code) return alert("Enter an event code.");
+            
+            const statusEl = document.getElementById('api-status');
+            statusEl.innerText = "Status: Fetching...";
+
+            try {
+                // Fetch Teams Data
+                const teamsRes = await fetch(`https://api.statbotics.io/v3/team_events?event=${code}`);
+                const teamsJson = await teamsRes.json();
+                
+                teamsData = {};
+                teamsJson.forEach(t => { teamsData[t.team] = t.epa ? t.epa.total_points.mean : 0; });
+                
+                // Fetch Matches Data
+                const matchesRes = await fetch(`https://api.statbotics.io/v3/matches?event=${code}`);
+                const matchesJson = await matchesRes.json();
+                
+                matchesData = matchesJson.sort((a,b) => a.match_number - b.match_number);
+                
+                // Save state
+                eventCode = code;
+                localStorage.setItem('frc_event_code', eventCode);
+                localStorage.setItem('frc_matches_data', JSON.stringify(matchesData));
+                localStorage.setItem('frc_teams_data', JSON.stringify(teamsData));
+
+                statusEl.innerText = `Status: Synced at ${new Date().toLocaleTimeString()}`;
+                
+                if(!isBackground) {
+                    populateMatchSelector();
+                    alert("Data synced successfully!");
+                }
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = "Status: Error Fetching Data";
+                if(!isBackground) alert("Failed to fetch data from Statbotics.");
+            }
+        }
+
+        function populateMatchSelector() {
+            const selector = document.getElementById('match-selector');
+            selector.innerHTML = '';
+            if(!matchesData || matchesData.length === 0) {
+                selector.innerHTML = '<option>No Matches Found</option>';
+                return;
+            }
+
+            matchesData.forEach((m, index) => {
+                const opt = document.createElement('option');
+                opt.value = index;
+                opt.text = `${m.comp_level.toUpperCase()} ${m.match_number}`;
+                selector.appendChild(opt);
+            });
+            loadMatchData();
+        }
+
+        // Load Match into Strategy
+        function loadMatchData() {
+            const selector = document.getElementById('match-selector');
+            if(!selector.value) return;
+            
+            activeMatch = matchesData[selector.value];
+            if(!activeMatch) return;
+
+            // Statbotics v3 usually has red_1, red_2, red_3, blue_1, blue_2, blue_3 directly.
+            const r1 = activeMatch.red_1 || activeMatch.red_1_team || "???";
+            const r2 = activeMatch.red_2 || activeMatch.red_2_team || "???";
+            const r3 = activeMatch.red_3 || activeMatch.red_3_team || "???";
+            const b1 = activeMatch.blue_1 || activeMatch.blue_1_team || "???";
+            const b2 = activeMatch.blue_2 || activeMatch.blue_2_team || "???";
+            const b3 = activeMatch.blue_3 || activeMatch.blue_3_team || "???";
+
+            const buildTeamRow = (allianceId, teamNum, colorCode) => {
+                const epa = teamsData[teamNum] ? teamsData[teamNum].toFixed(1) : 'N/A';
+                return `
+                    <div class="team-row">
+                        <span><strong>${allianceId}:</strong> ${teamNum} (EPA: ${epa})</span>
+                        <button class="cycle-auto-btn" onclick="cycleAutoIntoStrategy('${allianceId}', '${teamNum}', '${colorCode}')">Cycle Auto</button>
+                    </div>`;
+            };
+
+            document.getElementById('red-alliance-info').innerHTML = 
+                buildTeamRow('R1', r1, '#ff4444') + 
+                buildTeamRow('R2', r2, '#ff0000') + 
+                buildTeamRow('R3', r3, '#bb0000');
+
+            document.getElementById('blue-alliance-info').innerHTML = 
+                buildTeamRow('B1', b1, '#66b3ff') + 
+                buildTeamRow('B2', b2, '#0055ff') + 
+                buildTeamRow('B3', b3, '#0000bb');
+                
+            // Update Data attributes on color buttons for naming
+            document.querySelector('.c-r1').innerText = r1;
+            document.querySelector('.c-r2').innerText = r2;
+            document.querySelector('.c-r3').innerText = r3;
+            document.querySelector('.c-b1').innerText = b1;
+            document.querySelector('.c-b2').innerText = b2;
+            document.querySelector('.c-b3').innerText = b3;
+            
+            clearCanvas();
+        }
+
+        // DB Operations
+        function saveAutoToDB() {
+            const team = document.getElementById('db-team-input').value.trim();
+            const slot = document.getElementById('db-slot-input').value;
+            
+            if(!team) return alert("Enter a team number");
+            if(dbPaths.length === 0) return alert("Draw an auto path first");
+
+            if(!autosDB[team]) autosDB[team] = { "1": [], "2": [], "3": [] };
+            autosDB[team][slot] = JSON.parse(JSON.stringify(dbPaths)); // deep copy
+            
+            localStorage.setItem('frc_autos_db', JSON.stringify(autosDB));
+            alert(`Saved to Team ${team} Auto Slot ${slot}`);
+        }
+
+        function loadDBTeam() {
+            const team = document.getElementById('db-team-input').value.trim();
+            const slot = document.getElementById('db-slot-input').value;
+            dbPaths = [];
+            
+            if(team && autosDB[team] && autosDB[team][slot]) {
+                dbPaths = JSON.parse(JSON.stringify(autosDB[team][slot]));
+            }
+            redrawCanvas(dbCtx, dbPaths);
+        }
+
+        // State tracker for cycling autos
+        const autoCycleState = {}; 
+
+        function cycleAutoIntoStrategy(allianceId, teamNum, colorCode) {
+            if(!autosDB[teamNum]) return alert(`No autos saved in DB for team ${teamNum}`);
+            
+            if(!autoCycleState[teamNum]) autoCycleState[teamNum] = 1;
+            else autoCycleState[teamNum] = autoCycleState[teamNum] === 3 ? 1 : autoCycleState[teamNum] + 1;
+            
+            const slot = autoCycleState[teamNum].toString();
+            const savedPaths = autosDB[teamNum][slot];
+
+            if(savedPaths && savedPaths.length > 0) {
+                // Remove existing paths for this team slot in strategy canvas
+                paths = paths.filter(p => p.team !== allianceId);
+                
+                // Inject the loaded paths, changing their color to the strategy alliance color
+                savedPaths.forEach(sp => {
+                    const mappedPath = {
+                        team: allianceId,
+                        color: colorCode,
+                        points: sp.points
+                    };
+                    paths.push(mappedPath);
+                });
+                
+                redrawCanvas(ctx, paths);
+                alert(`Loaded Auto Slot ${slot} for Team ${teamNum}`);
+            } else {
+                alert(`Auto Slot ${slot} for Team ${teamNum} is empty. Cycling...`);
+            }
+        }
+
+        // Exporting
+        function getDownloadFilename() {
+            if(!activeMatch) return "Auto_Paths.png";
+            
+            const m = activeMatch.match_number;
+            const r1 = activeMatch.red_1 || "X"; const r2 = activeMatch.red_2 || "X"; const r3 = activeMatch.red_3 || "X";
+            const b1 = activeMatch.blue_1 || "X"; const b2 = activeMatch.blue_2 || "X"; const b3 = activeMatch.blue_3 || "X";
+            
+            return `M${m}_R1-${r1}_R2-${r2}_R3-${r3}_B1-${b1}_B2-${b2}_B3-${b3}.png`;
+        }
+
+        function downloadFieldImage() {
+            const dataUrl = canvas.toDataURL("image/png");
+            const link = document.createElement('a');
+            link.download = getDownloadFilename();
+            link.href = dataUrl;
+            link.click();
+        }
+
+        function generateQR() {
+            const qrContainer = document.getElementById('qr-container');
+            const qrDiv = document.getElementById('qrcode');
+            qrDiv.innerHTML = ''; // clear old
+            qrContainer.style.display = 'flex';
+
+            // Compress paths to avoid QR size limit
+            // Format: [{ t:"R1", p:[[x,y],...] }]
+            const compressed = paths.map(stroke => {
+                // Keep only every 5th point to heavily reduce JSON size
+                const simplifiedPts = stroke.points.filter((_, i) => i % 5 === 0).map(pt => [Math.round(pt.x), Math.round(pt.y)]);
+                return { t: stroke.team, p: simplifiedPts };
+            });
+
+            const dataStr = JSON.stringify(compressed);
+
+            try {
+                new QRCode(qrDiv, {
+                    text: dataStr,
+                    width: 256,
+                    height: 256,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.L // Lowest error correction allows more data
+                });
+            } catch (e) {
+                qrDiv.innerHTML = '<span style="color:red; font-size:12px;">Drawing too complex for QR code. Please simplify.</span>';
+            }
+        }
+
+    </script>
+</body>
+</html>
