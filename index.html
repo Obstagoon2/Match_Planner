@@ -1,896 +1,1249 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FRC Auto Path Planner</title>
-    <!-- Nasalization Font -->
-    <style>
-        @import url('https://fonts.cdnfonts.com/css/nasalization-rg');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRC Auto Path Planner</title>
+<style>
+@font-face {
+    font-family: 'Nasalization';
+    src: url('../assets/fonts/Nasalization Rg.otf') format('opentype');
+    font-display: swap;
+}
 
-        :root {
-            --primary-blue: #0077ff;
-            --primary-orange: #ff7700;
-            --bg-color: #0d0f12;
-            --panel-bg: rgba(30, 34, 42, 0.6);
-            --panel-border: rgba(255, 255, 255, 0.05);
-            --text-color: #ffffff;
-            --text-muted: #aaaaaa;
-            
-            --c-r1: #ff4444; --c-r2: #ff0000; --c-r3: #bb0000;
-            --c-b1: #66b3ff; --c-b2: #0055ff; --c-b3: #0000bb;
+:root {
+    --primary-blue: #2498DC;
+    --secondary-blue: #1C7AB1;
+    --primary-orange: #FF8300;
+    --secondary-orange: #FF9C33;
+    --accent-yellow: #FEF400;
+    --light-gray: #B5B5B5;
+    --dark-gray: #9C9C9C;
+    --white: #ffffff;
+    --black: #1a1a1a;
+    --header-height: 110px;
+    --transition-speed: 0.3s;
 
-            /* "AI Look" Variables */
-            --radius-large: 24px;
-            --radius-medium: 16px;
-            --radius-pill: 9999px;
-            --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.4);
-            --shadow-glow: 0 0 15px rgba(0, 119, 255, 0.3);
-        }
+    /* Six distinct path colors: 3 Red Alliance + 3 Blue Alliance */
+    --r1-color: #E63946;
+    --r2-color: #C1121F;
+    --r3-color: var(--primary-orange);
+    --b1-color: var(--primary-blue);
+    --b2-color: var(--secondary-blue);
+    --b3-color: #7FDBFF;
+}
 
-        * {
-            box-sizing: border-box;
-            font-family: 'Nasalization', sans-serif;
-        }
+* { box-sizing: border-box; }
 
-        body {
-            margin: 0;
-            background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 0%, #1a2332 0%, var(--bg-color) 70%);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #f2f3f5;
+    color: var(--black);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
 
-        /* Navbar & Tabs */
-        header {
-            background: linear-gradient(135deg, rgba(0, 119, 255, 0.8) 0%, rgba(255, 119, 0, 0.8) 100%);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            margin: 15px 20px;
-            padding: 15px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: var(--radius-large);
-            box-shadow: var(--shadow-soft);
-            z-index: 10;
-        }
+h1, h2, h3, .brand-font, .tab-btn, .btn, label, .section-title {
+    font-family: 'Nasalization', 'Segoe UI', Roboto, Arial, sans-serif;
+}
 
-        h1 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+/* ---------- Header ---------- */
+header {
+    height: var(--header-height);
+    background: linear-gradient(135deg, var(--black) 0%, #262626 100%);
+    border-bottom: 4px solid var(--primary-orange);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
 
-        .tab-buttons {
-            display: flex;
-            gap: 10px;
-        }
+header .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
 
-        .tab-buttons button {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: var(--radius-pill);
-            transition: all 0.3s ease;
-            font-size: 13px;
-            letter-spacing: 0.5px;
-        }
+header .brand h1 {
+    color: var(--white);
+    font-size: 22px;
+    letter-spacing: 1px;
+    margin: 0;
+}
 
-        .tab-buttons button.active, .tab-buttons button:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.4);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transform: translateY(-2px);
-        }
+header .brand span {
+    color: var(--light-gray);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
 
-        /* Main Layout */
-        .container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            padding: 0 20px 20px 20px;
-            gap: 20px;
-        }
+.tabs {
+    display: flex;
+    gap: 8px;
+}
 
-        .sidebar {
-            width: 340px;
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            padding: 25px;
-            overflow-y: auto;
-            border-radius: var(--radius-large);
-            border: 1px solid var(--panel-border);
-            box-shadow: var(--shadow-soft);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+.tab-btn {
+    background: transparent;
+    border: 2px solid transparent;
+    color: var(--light-gray);
+    padding: 10px 18px;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
 
-        .sidebar h2 {
-            margin-top: 0;
-            margin-bottom: 5px;
-            font-size: 18px;
-            color: var(--primary-blue);
-            text-shadow: var(--shadow-glow);
-        }
+.tab-btn:hover { color: var(--white); border-color: var(--dark-gray); }
 
-        .main-content {
-            flex: 1;
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            padding: 25px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            overflow-y: auto;
-            border-radius: var(--radius-large);
-            border: 1px solid var(--panel-border);
-            box-shadow: var(--shadow-soft);
-        }
+.tab-btn.active {
+    background: var(--primary-orange);
+    color: var(--white);
+    border-color: var(--primary-orange);
+}
 
-        /* Forms & Inputs */
-        label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; letter-spacing: 0.5px;}
-        
-        input, select {
-            width: 100%;
-            padding: 12px 16px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            border-radius: var(--radius-medium);
-            outline: none;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-        
-        input:focus, select:focus { 
-            border-color: var(--primary-blue); 
-            box-shadow: 0 0 10px rgba(0, 119, 255, 0.2);
-            background: rgba(0, 0, 0, 0.5);
-        }
+/* ---------- Layout ---------- */
+main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+}
 
-        button.action-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #005ce6 0%, var(--primary-blue) 100%);
-            color: white;
-            border: none;
-            border-radius: var(--radius-pill);
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: bold;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 119, 255, 0.3);
-        }
-        
-        button.action-btn:hover { 
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 119, 255, 0.5);
-            background: linear-gradient(135deg, var(--primary-blue) 0%, #3399ff 100%);
-        }
-        
-        button.action-btn.orange { 
-            background: linear-gradient(135deg, #e66a00 0%, var(--primary-orange) 100%);
-            box-shadow: 0 4px 15px rgba(255, 119, 0, 0.3);
-        }
-        
-        button.action-btn.orange:hover { 
-            background: linear-gradient(135deg, var(--primary-orange) 0%, #ff9933 100%);
-            box-shadow: 0 6px 20px rgba(255, 119, 0, 0.5);
-        }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
-        /* Canvas Elements */
-        #canvas-wrapper, #canvas-wrapper-db {
-            position: relative;
-            max-width: 100%;
-            display: inline-block;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius-large);
-            overflow: hidden;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.6);
-            transition: transform 0.3s ease;
-        }
+.card {
+    background: var(--white);
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+}
 
-        canvas {
-            display: block;
-            cursor: crosshair;
-            max-width: 100%;
-            background-color: #1a1a1a;
-        }
+.section-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--secondary-blue);
+    margin: 0 0 12px;
+    font-weight: 700;
+}
 
-        .toolbar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-            background: rgba(0,0,0,0.2);
-            padding: 10px 20px;
-            border-radius: var(--radius-pill);
-            border: 1px solid rgba(255,255,255,0.05);
-        }
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
 
-        .color-btn {
-            width: 45px; height: 45px;
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.1);
-            cursor: pointer;
-            display: flex;
-            align-items: center; justify-content: center;
-            font-size: 12px; font-weight: bold;
-            color: white; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        
-        .color-btn:hover {
-            transform: scale(1.1);
-        }
-        
-        .color-btn.active { 
-            border-color: white; 
-            box-shadow: 0 0 15px currentColor;
-            transform: scale(1.15);
-        }
-        
-        .c-r1 { background: var(--c-r1); color: var(--c-r1); } 
-        .c-r2 { background: var(--c-r2); color: var(--c-r2); } 
-        .c-r3 { background: var(--c-r3); color: var(--c-r3); }
-        .c-b1 { background: var(--c-b1); color: var(--c-b1); } 
-        .c-b2 { background: var(--c-b2); color: var(--c-b2); } 
-        .c-b3 { background: var(--c-b3); color: var(--c-b3); }
-        
-        .color-btn { color: white !important; }
+input[type="text"], input[type="number"], select {
+    border: 2px solid #e4e4e4;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color var(--transition-speed);
+    background: var(--white);
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    border-color: var(--primary-blue);
+}
 
-        /* API Status */
-        #api-status {
-            font-size: 11px;
-            color: var(--primary-blue);
-            margin-top: -5px;
-            text-align: center;
-            background: rgba(0, 119, 255, 0.1);
-            padding: 8px;
-            border-radius: var(--radius-pill);
-            border: 1px solid rgba(0, 119, 255, 0.2);
-            word-wrap: break-word;
-        }
+.btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    color: var(--white);
+    background: var(--primary-blue);
+    transition: transform var(--transition-speed), background var(--transition-speed);
+}
+.btn:hover { background: var(--secondary-blue); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn.orange { background: var(--primary-orange); }
+.btn.orange:hover { background: var(--secondary-orange); }
+.btn.ghost { background: transparent; color: var(--secondary-blue); border: 2px solid var(--primary-blue); }
+.btn.ghost:hover { background: var(--primary-blue); color: var(--white); }
+.btn.small { padding: 6px 12px; font-size: 12px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform:none; }
 
-        /* Match Info Display */
-        .match-info-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-        
-        .alliance-box { 
-            padding: 15px; 
-            border-radius: var(--radius-medium); 
-            border: 1px solid rgba(255,255,255,0.05);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
-        }
-        
-        .red-alliance { 
-            background: linear-gradient(135deg, rgba(255,0,0,0.1) 0%, rgba(255,0,0,0.02) 100%); 
-            border-left: 4px solid var(--c-r1);
-        }
-        
-        .blue-alliance { 
-            background: linear-gradient(135deg, rgba(0,0,255,0.1) 0%, rgba(0,0,255,0.02) 100%); 
-            border-left: 4px solid var(--c-b2);
-        }
-        
-        .team-row { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-bottom: 8px; 
-            font-size: 13px; 
-            align-items: center;
-        }
-        
-        .team-row:last-child { margin-bottom: 0; }
-        
-        /* Auto Cycling Buttons */
-        .cycle-auto-btn {
-            background: rgba(255,255,255,0.1); 
-            border: 1px solid rgba(255,255,255,0.2); 
-            color: white;
-            font-size: 10px; 
-            padding: 4px 10px; 
-            cursor: pointer; 
-            border-radius: var(--radius-pill);
-            transition: all 0.2s;
-        }
-        
-        .cycle-auto-btn:hover { 
-            background: var(--primary-orange); 
-            border-color: var(--primary-orange);
-            box-shadow: 0 2px 8px rgba(255, 119, 0, 0.4);
-        }
+.status-text { font-size: 12px; color: var(--dark-gray); }
+.status-text.ok { color: #2e8b57; }
+.status-text.err { color: #c1121f; }
 
-        /* QR Code Modal */
-        #qr-container {
-            margin-top: auto;
-            background: white; 
-            padding: 20px; 
-            border-radius: var(--radius-medium);
-            display: none; 
-            justify-content: center; 
-            align-items: center;
-            flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            animation: popIn 0.3s ease-out forwards;
-        }
-        
-        @keyframes popIn {
-            0% { opacity: 0; transform: scale(0.9); }
-            100% { opacity: 1; transform: scale(1); }
-        }
+/* ---------- Alliance cards ---------- */
+.alliance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 800px) { .alliance-grid { grid-template-columns: 1fr; } }
 
-        #qr-container p { 
-            color: #333; 
-            font-size: 13px; 
-            font-weight: bold;
-            text-align: center;
-            margin: 15px 0 0 0;
-            font-family: sans-serif;
-        }
+.alliance-col {
+    border-radius: 12px;
+    padding: 12px;
+}
+.alliance-col.red { background: linear-gradient(180deg, rgba(230,57,70,0.08), rgba(230,57,70,0.02)); border: 1px solid rgba(230,57,70,0.25); }
+.alliance-col.blue { background: linear-gradient(180deg, rgba(36,152,220,0.08), rgba(36,152,220,0.02)); border: 1px solid rgba(36,152,220,0.25); }
 
-        /* Tab Content Control */
-        .tab-content { display: none; width: 100%; height: 100%; gap: 20px; }
-        .tab-content.active { display: flex; animation: fadeIn 0.4s ease-out; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+.alliance-col-title { display:flex; justify-content: space-between; align-items:center; font-weight:700; font-size:13px; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.alliance-col.red .alliance-col-title { color:#C1121F; }
+.alliance-col.blue .alliance-col-title { color:var(--secondary-blue); }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+.team-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--white);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid #eee;
+}
+.team-swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink:0; }
+.team-info { flex:1; }
+.team-number { font-weight: 700; font-size: 15px; }
+.team-epa { font-size: 12px; color: var(--dark-gray); }
 
-    </style>
-    <!-- QR Code Library via CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+.win-prob-bar { height:8px; border-radius:4px; background:#eee; overflow:hidden; margin-top:8px; display:flex; }
+.win-prob-bar > div:first-child { background: #E63946; }
+.win-prob-bar > div:last-child { background: var(--primary-blue); }
+.win-prob-label { font-size:11px; color:var(--dark-gray); display:flex; justify-content:space-between; margin-top:4px; }
+
+/* ---------- Canvas / toolbar ---------- */
+.canvas-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    aspect-ratio: 27 / 15.5;
+    background: #223 url('field.png') center/contain no-repeat;
+    border-radius: 12px;
+    border: 3px solid var(--black);
+    overflow: hidden;
+    touch-action: none;
+}
+.canvas-wrap canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+.slot-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0;
+    justify-content: center;
+}
+.slot-btn {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 76px;
+    text-align: center;
+    transition: all var(--transition-speed);
+    opacity: 0.55;
+}
+.slot-btn.active { border-color: var(--black); opacity: 1; transform: scale(1.05); }
+.slot-btn .num { display:block; font-size: 15px; }
+
+.cycle-row {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--dark-gray);
+}
+.cycle-row button { border:none; background:#eee; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:700; }
+.cycle-row button:hover { background: var(--light-gray); color: var(--white); }
+
+.toolbar-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:16px; }
+
+/* ---------- Tab 2 gallery ---------- */
+.gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+.gallery-item {
+    border: 2px solid #eee;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--white);
+    cursor: pointer;
+    transition: border-color var(--transition-speed);
+}
+.gallery-item:hover { border-color: var(--primary-blue); }
+.gallery-item.selected { border-color: var(--primary-orange); }
+.gallery-item img { width: 100%; display: block; aspect-ratio: 27/15.5; object-fit: cover; background:#223; }
+.gallery-item .meta { padding: 6px 8px; font-size: 11px; color: var(--dark-gray); display:flex; justify-content: space-between; align-items:center; }
+.gallery-item .meta button { border:none; background:none; color:#c1121f; cursor:pointer; font-size: 14px; }
+
+.empty-note { color: var(--dark-gray); font-size: 13px; text-align:center; padding: 20px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+    display:none;
+    position: fixed; inset:0; background: rgba(0,0,0,0.55);
+    align-items:center; justify-content:center; z-index: 100;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+}
+.modal h3 { margin-top:0; color: var(--black); }
+.modal img { width: 220px; height: 220px; margin: 12px auto; display:block; }
+.modal .url-box { font-size: 11px; word-break: break-all; background:#f5f5f5; border-radius:8px; padding:8px; margin-bottom: 12px; color: var(--dark-gray); }
+.modal .modal-actions { display:flex; gap:10px; justify-content:center; }
+
+footer.tiny-note { text-align:center; color: var(--dark-gray); font-size: 11px; padding: 10px 0 30px; }
+</style>
 </head>
 <body>
 
-    <header>
-        <h1>FRC Auto Planner</h1>
-        <div class="tab-buttons">
-            <button class="active" onclick="switchTab('strategy')">Match Strategy</button>
-            <button onclick="switchTab('db')">Auto DB Collection</button>
-            <button onclick="switchTab('setup')">API Setup</button>
-        </div>
-    </header>
-
-    <div class="container">
-        
-        <!-- ================= SETUP TAB ================= -->
-        <div id="tab-setup" class="tab-content">
-            <div class="sidebar">
-                <h2>Statbotics Sync</h2>
-                <p style="font-size:12px; color:var(--text-muted); line-height: 1.5;">Syncs event matches and team EPA data. Auto-updates every 5 minutes in background.</p>
-                
-                <div>
-                    <label>Event Code (e.g., 2024txhou)</label>
-                    <input type="text" id="event-code-input" placeholder="Event Code">
-                </div>
-                
-                <button class="action-btn" onclick="fetchStatboticsData()">Sync Data</button>
-                <div id="api-status">Status: Waiting for Input</div>
-            </div>
-            <div class="main-content" style="justify-content: center;">
-                <h1 style="color: var(--text-muted); opacity: 0.3; font-size: 28px;">Connect to Statbotics</h1>
-                <p style="color: var(--text-muted); opacity: 0.5;">Enter an event code in the panel to begin pulling match data.</p>
-            </div>
-        </div>
-
-        <!-- ================= MATCH STRATEGY TAB ================= -->
-        <div id="tab-strategy" class="tab-content active">
-            <div class="sidebar">
-                <h2>Strategy Board</h2>
-                
-                <div>
-                    <label>Select Match</label>
-                    <select id="match-selector" onchange="loadMatchData()"></select>
-                </div>
-
-                <div class="match-info-grid">
-                    <div class="alliance-box red-alliance" id="red-alliance-info">
-                        <!-- Populated by JS -->
-                    </div>
-                    <div class="alliance-box blue-alliance" id="blue-alliance-info">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <button class="action-btn orange" onclick="clearCanvas()" style="font-size: 11px; padding: 12px;">Clear</button>
-                    <button class="action-btn" onclick="undoLastStroke()" style="font-size: 11px; padding: 12px;">Undo</button>
-                </div>
-                
-                <button class="action-btn" onclick="downloadFieldImage()">Export Image</button>
-                <button class="action-btn orange" onclick="generateQR()">Generate QR</button>
-
-                <div id="qr-container">
-                    <div id="qrcode"></div>
-                    <p>SCAN TO VIEW PATHS</p>
-                </div>
-            </div>
-            
-            <div class="main-content">
-                <div class="toolbar" id="strategy-toolbar">
-                    <div class="color-btn c-r1 active" data-team="R1" data-color="#ff4444" onclick="setColor(this)">R1</div>
-                    <div class="color-btn c-r2" data-team="R2" data-color="#ff0000" onclick="setColor(this)">R2</div>
-                    <div class="color-btn c-r3" data-team="R3" data-color="#bb0000" onclick="setColor(this)">R3</div>
-                    <div class="color-btn c-b1" data-team="B1" data-color="#66b3ff" onclick="setColor(this)">B1</div>
-                    <div class="color-btn c-b2" data-team="B2" data-color="#0055ff" onclick="setColor(this)">B2</div>
-                    <div class="color-btn c-b3" data-team="B3" data-color="#0000bb" onclick="setColor(this)">B3</div>
-                </div>
-                
-                <div id="canvas-wrapper">
-                    <canvas id="field-canvas" width="1200" height="600"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- ================= AUTO DB COLLECTION TAB ================= -->
-        <div id="tab-db" class="tab-content">
-            <div class="sidebar">
-                <h2>Path Database</h2>
-                <p style="font-size:12px; color:var(--text-muted); line-height: 1.5;">Draw and save up to 3 anticipated autonomous paths per team for pre-match strategy.</p>
-                
-                <div>
-                    <label>Target Team Number</label>
-                    <input type="number" id="db-team-input" placeholder="e.g. 254" onchange="loadDBTeam()">
-                </div>
-                
-                <div>
-                    <label>Memory Slot</label>
-                    <select id="db-slot-input" onchange="loadDBTeam()">
-                        <option value="1">Routine Alpha (Slot 1)</option>
-                        <option value="2">Routine Beta (Slot 2)</option>
-                        <option value="3">Routine Gamma (Slot 3)</option>
-                    </select>
-                </div>
-
-                <button class="action-btn" onclick="saveAutoToDB()">Save to Memory</button>
-                <button class="action-btn orange" onclick="clearDBCanvas()">Clear Canvas</button>
-            </div>
-            
-            <div class="main-content">
-                 <div class="toolbar">
-                    <div class="color-btn active" style="background: linear-gradient(135deg, #fff, #ddd); color:#000 !important; width: 60px; border-radius: var(--radius-pill);" data-team="DB" data-color="#ffffff" onclick="setColor(this)">DRAW</div>
-                </div>
-                <div id="canvas-wrapper-db">
-                    <canvas id="db-canvas" width="1200" height="600"></canvas>
-                </div>
-            </div>
-        </div>
-
+<header>
+    <div class="brand">
+        <h1>AUTO PATH PLANNER</h1>
+        <span>FRC Pre-Match Strategy Tool</span>
     </div>
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="strategy">Match Strategy</button>
+        <button class="tab-btn" data-tab="database">Auto Database</button>
+    </div>
+</header>
 
-    <script>
-        // Global State & Configuration
-        const FIELD_IMAGE_SRC = 'FE-2026-_REBUILT_Playing_Field_With_Background.png';
-        let eventCode = localStorage.getItem('frc_event_code') || '';
-        let matchesData = JSON.parse(localStorage.getItem('frc_matches_data')) || [];
-        let teamsData = JSON.parse(localStorage.getItem('frc_teams_data')) || {};
-        let autosDB = JSON.parse(localStorage.getItem('frc_autos_db')) || {}; // Structure: { "254": { "1": [...strokes], "2": [], "3": [] } }
-        
-        let activeMatch = null;
-        let activeTab = 'strategy';
-        
-        // Canvas & Drawing State
-        let canvas, ctx, dbCanvas, dbCtx;
-        let fieldImage = new Image();
-        
-        let isDrawing = false;
-        let currentStroke = [];
-        let paths = []; // Strategy paths: { teamId, color, points: [] }
-        let dbPaths = []; // DB paths
-        
-        let currentDrawTeam = 'R1';
-        let currentDrawColor = '#ff4444';
+<main>
 
-        // Initialization
-        window.onload = () => {
-            canvas = document.getElementById('field-canvas');
-            ctx = canvas.getContext('2d');
-            dbCanvas = document.getElementById('db-canvas');
-            dbCtx = dbCanvas.getContext('2d');
+    <!-- ===================== TAB 1: MATCH STRATEGY ===================== -->
+    <section id="tab-strategy" class="tab-panel active">
 
-            fieldImage.onload = () => { redrawCanvas(ctx, paths); redrawCanvas(dbCtx, dbPaths); };
-            fieldImage.src = FIELD_IMAGE_SRC;
+        <div class="card">
+            <div class="section-title">Event Data</div>
+            <div class="row">
+                <input type="text" id="eventCodeInput" placeholder="Event code (e.g. 2025mrcmp)">
+                <button class="btn" id="loadEventBtn">Load Event</button>
+                <span class="status-text" id="eventStatus">No event loaded.</span>
+            </div>
+        </div>
 
-            setupCanvasListeners(canvas, ctx, paths);
-            setupCanvasListeners(dbCanvas, dbCtx, dbPaths);
+        <div class="card">
+            <div class="section-title">Match Selection</div>
+            <div class="row">
+                <select id="matchSelect" disabled>
+                    <option>Load an event first...</option>
+                </select>
+                <button class="btn ghost small" id="refreshMatchesBtn" disabled>Refresh</button>
+            </div>
+        </div>
 
-            if (eventCode) {
-                document.getElementById('event-code-input').value = eventCode;
-                populateMatchSelector();
+        <div class="card">
+            <div class="section-title">Alliance Preview</div>
+            <div class="alliance-grid">
+                <div class="alliance-col red">
+                    <div class="alliance-col-title"><span>Red Alliance</span><span id="redWinPct">--%</span></div>
+                    <div id="redTeamCards"><div class="empty-note">Select a match to preview teams.</div></div>
+                </div>
+                <div class="alliance-col blue">
+                    <div class="alliance-col-title"><span>Blue Alliance</span><span id="blueWinPct">--%</span></div>
+                    <div id="blueTeamCards"><div class="empty-note">Select a match to preview teams.</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Path Planning Canvas</div>
+
+            <div class="slot-toolbar" id="slotToolbar"><!-- filled by JS --></div>
+
+            <div class="canvas-wrap" id="canvasWrapStrategy">
+                <canvas id="canvasStrategy"></canvas>
+            </div>
+
+            <div class="cycle-row" id="cycleRow">
+                <button id="cyclePrev">&#8592;</button>
+                <span id="cycleLabel">No saved autos for selected team</span>
+                <button id="cycleNext">&#8594;</button>
+            </div>
+
+            <div class="toolbar-actions">
+                <button class="btn ghost small" id="undoStrategyBtn">Undo Stroke</button>
+                <button class="btn ghost small" id="clearSlotBtn">Clear Active Team</button>
+                <button class="btn small" id="savePathBtn">Save Path to Auto DB</button>
+                <button class="btn orange small" id="downloadPngBtn">Download PNG</button>
+                <button class="btn orange small" id="qrCodeBtn">Generate QR Code</button>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ===================== TAB 2: AUTO DATABASE ===================== -->
+    <section id="tab-database" class="tab-panel">
+
+        <div class="card">
+            <div class="section-title">Select Team</div>
+            <div class="row">
+                <select id="dbTeamSelectKnown">
+                    <option value="">-- teams from last loaded event --</option>
+                </select>
+                <input type="text" id="dbTeamManual" placeholder="Or enter team # manually">
+                <button class="btn" id="dbLoadTeamBtn">Load Team</button>
+                <span class="status-text" id="dbTeamStatus"></span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Scout a New Auto Path</div>
+            <div class="row" style="margin-bottom:10px;">
+                <span style="font-size:12px;color:var(--dark-gray);">Path color:</span>
+                <div class="slot-toolbar" id="dbColorToolbar" style="margin:0;"></div>
+            </div>
+
+            <div class="canvas-wrap" id="canvasWrapDb">
+                <canvas id="canvasDb"></canvas>
+            </div>
+
+            <div class="toolbar-actions">
+                <button class="btn ghost small" id="undoDbBtn">Undo Stroke</button>
+                <button class="btn ghost small" id="clearDbBtn">Clear Canvas</button>
+                <button class="btn small" id="saveDbBtn" disabled>Save Auto for Team</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Saved Autos <span id="dbGalleryTeamLabel"></span></div>
+            <div class="gallery" id="dbGallery">
+                <div class="empty-note">Load a team to view its saved autos.</div>
+            </div>
+        </div>
+
+    </section>
+
+</main>
+
+<footer class="tiny-note">FRC Auto Path Planner &middot; data via Statbotics &middot; stored locally in your browser</footer>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qrModalOverlay">
+    <div class="modal">
+        <h3>Scan to Load This Match</h3>
+        <img id="qrImage" alt="QR code">
+        <div class="url-box" id="qrUrlBox"></div>
+        <div class="modal-actions">
+            <button class="btn ghost small" id="qrCopyBtn">Copy Link</button>
+            <button class="btn small" id="qrCloseBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* =========================================================================
+   CONFIG
+   ========================================================================= */
+const SLOT_KEYS = ["R1","R2","R3","B1","B2","B3"];
+const SLOT_COLORS = {
+    R1: "#E63946", R2: "#C1121F", R3: "#FF8300",
+    B1: "#2498DC", B2: "#1C7AB1", B3: "#7FDBFF"
+};
+const SLOT_LABELS = {
+    R1: "Red 1", R2: "Red 2", R3: "Red 3",
+    B1: "Blue 1", B2: "Blue 2", B3: "Blue 3"
+};
+const STATBOTICS_BASE = "https://api.statbotics.io/v2";
+const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+const QR_TARGET_URL = "https://obstagoon2.github.io/Match_Planner/index.html";
+
+/* =========================================================================
+   INDEXEDDB - Auto Database storage
+   ========================================================================= */
+const DB_NAME = "frcPlannerDB";
+const DB_VERSION = 1;
+const STORE_NAME = "autos";
+
+function openDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                store.createIndex("team", "team", { unique: false });
             }
-
-            // Start background API sync (5 minutes)
-            setInterval(() => {
-                if(eventCode) fetchStatboticsData(true);
-            }, 5 * 60 * 1000); 
-
-            switchTab('strategy');
         };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
 
-        // UI & Tab Management
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-buttons button').forEach(el => el.classList.remove('active'));
-            
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-            event.target.classList.add('active');
-            activeTab = tabId;
+async function dbAddAuto(team, strokes) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        const record = { team: Number(team), strokes, createdAt: Date.now() };
+        const req = store.add(record);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
 
-            if(tabId === 'strategy' && activeMatch) loadMatchData();
-            if(tabId === 'db') loadDBTeam();
+async function dbGetAutosForTeam(team) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const idx = store.index("team");
+        const req = idx.getAll(Number(team));
+        req.onsuccess = () => resolve(req.result.sort((a,b) => a.createdAt - b.createdAt));
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function dbDeleteAuto(id) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+    });
+}
+
+/* =========================================================================
+   STATBOTICS API + CACHING
+   ========================================================================= */
+async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Request failed (" + res.status + "): " + url);
+    return res.json();
+}
+
+async function fetchStatboticsEvent(eventCode) {
+    const [teamEvents, matches] = await Promise.all([
+        fetchJson(`${STATBOTICS_BASE}/team_events/event/${encodeURIComponent(eventCode)}`),
+        fetchJson(`${STATBOTICS_BASE}/matches/event/${encodeURIComponent(eventCode)}`)
+    ]);
+    return { teamEvents, matches, fetchedAt: Date.now() };
+}
+
+function cacheKey(eventCode) { return `sb_event_${eventCode}`; }
+
+function saveEventCache(eventCode, data) {
+    try { localStorage.setItem(cacheKey(eventCode), JSON.stringify(data)); }
+    catch(e) { console.warn("Could not cache event data", e); }
+}
+
+function loadEventCache(eventCode) {
+    try {
+        const raw = localStorage.getItem(cacheKey(eventCode));
+        return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+}
+
+/* Defensive field extraction since API field names vary slightly by season */
+function extractTeamEpa(teamEventObj) {
+    if (!teamEventObj) return null;
+    const candidates = [
+        teamEventObj?.epa?.total_points?.mean,
+        teamEventObj?.epa?.breakdown?.total_points,
+        teamEventObj?.epa?.current,
+        teamEventObj?.epa_end,
+        teamEventObj?.norm_epa?.current,
+        typeof teamEventObj?.epa === "number" ? teamEventObj.epa : null
+    ];
+    for (const c of candidates) if (typeof c === "number" && !isNaN(c)) return Math.round(c * 10) / 10;
+    return null;
+}
+
+function extractAllianceTeams(match, alliance) {
+    if (Array.isArray(match[alliance])) return match[alliance].map(Number);
+    if (Array.isArray(match[alliance + "_teams"])) return match[alliance + "_teams"].map(Number);
+    const teams = [];
+    for (let i = 1; i <= 3; i++) {
+        let v = match[`${alliance}_${i}`];
+        if (v === undefined) v = match[alliance]?.[`team_${i}`];
+        if (v !== undefined && v !== null) {
+            if (typeof v === "string") v = parseInt(v.replace(/\D/g, ""), 10);
+            teams.push(v);
         }
+    }
+    return teams;
+}
 
-        function setColor(btn) {
-            let container = btn.parentElement;
-            container.querySelectorAll('.color-btn').forEach(el => el.classList.remove('active'));
-            btn.classList.add('active');
-            currentDrawTeam = btn.getAttribute('data-team');
-            currentDrawColor = btn.getAttribute('data-color');
+function extractWinProb(match) {
+    const p = match.epa_win_prob ?? match.win_prob ?? match.red_win_prob;
+    if (typeof p === "number") return p; // probability red wins, 0-1
+    return null;
+}
+
+function matchLabel(m) {
+    const level = m.comp_level || m.level || "qm";
+    const num = m.match_number ?? m.match_num ?? "?";
+    const set = m.set_number ?? m.set_num;
+    const names = { qm: "Qual", ef: "Eighth", qf: "Quarter", sf: "Semi", f: "Final" };
+    const name = names[level] || level;
+    if (set && level !== "qm") return `${name} ${set}-${num}`;
+    return `${name} ${num}`;
+}
+
+/* =========================================================================
+   PATH CANVAS - shared drawing engine with quadratic-curve smoothing
+   ========================================================================= */
+class PathCanvas {
+    constructor(canvasEl, wrapEl, opts) {
+        this.canvas = canvasEl;
+        this.wrap = wrapEl;
+        this.ctx = canvasEl.getContext("2d");
+        this.getActiveColor = opts.getActiveColor;  // fn -> hex color string
+        this.onStrokeEnd = opts.onStrokeEnd || function(){};
+        this.strokesByColor = {};   // { colorKey: [ {color, points:[{x,y} normalized 0-1]} ] }
+        this.currentStroke = null;
+        this.drawing = false;
+
+        this._resize();
+        window.addEventListener("resize", () => this._resize());
+
+        canvasEl.addEventListener("pointerdown", (e) => this._start(e));
+        canvasEl.addEventListener("pointermove", (e) => this._move(e));
+        window.addEventListener("pointerup", () => this._end());
+        canvasEl.addEventListener("pointerleave", () => this._end());
+    }
+
+    _resize() {
+        const rect = this.wrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = rect.width * dpr;
+        this.canvas.height = rect.height * dpr;
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.cssW = rect.width;
+        this.cssH = rect.height;
+        this.redraw();
+    }
+
+    _toNorm(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) / rect.width,
+            y: (e.clientY - rect.top) / rect.height
+        };
+    }
+
+    _start(e) {
+        this.drawing = true;
+        const color = this.getActiveColor();
+        if (!color) { this.drawing = false; return; }
+        this.currentStroke = { color, points: [this._toNorm(e)] };
+        this.canvas.setPointerCapture && this.canvas.setPointerCapture(e.pointerId);
+    }
+
+    _move(e) {
+        if (!this.drawing || !this.currentStroke) return;
+        this.currentStroke.points.push(this._toNorm(e));
+        this.redraw();
+    }
+
+    _end() {
+        if (this.drawing && this.currentStroke && this.currentStroke.points.length > 1) {
+            const key = this.currentStroke.color;
+            if (!this.strokesByColor[key]) this.strokesByColor[key] = [];
+            this.strokesByColor[key].push(this.currentStroke);
+            this.onStrokeEnd(this.currentStroke);
         }
+        this.drawing = false;
+        this.currentStroke = null;
+        this.redraw();
+    }
 
-        // Canvas Drawing Logic
-        function setupCanvasListeners(c, context, pathStorage) {
-            const startDraw = (e) => {
-                isDrawing = true;
-                const pos = getMousePos(c, e);
-                currentStroke = [pos];
-            };
-
-            const draw = (e) => {
-                if (!isDrawing) return;
-                const pos = getMousePos(c, e);
-                currentStroke.push(pos);
-                
-                redrawCanvas(context, pathStorage);
-                context.beginPath();
-                context.strokeStyle = currentDrawColor;
-                context.lineWidth = 4;
-                context.lineJoin = "round";
-                context.lineCap = "round";
-                // Slight shadow for AI glowing line effect
-                context.shadowColor = currentDrawColor;
-                context.shadowBlur = 8;
-                
-                context.moveTo(currentStroke[0].x, currentStroke[0].y);
-                for (let i = 1; i < currentStroke.length; i++) {
-                    context.lineTo(currentStroke[i].x, currentStroke[i].y);
-                }
-                context.stroke();
-                
-                // Reset shadow so it doesn't affect images
-                context.shadowBlur = 0;
-            };
-
-            const stopDraw = () => {
-                if (isDrawing && currentStroke.length > 0) {
-                    pathStorage.push({ team: currentDrawTeam, color: currentDrawColor, points: currentStroke });
-                }
-                isDrawing = false;
-                redrawCanvas(context, pathStorage);
-            };
-
-            c.addEventListener('mousedown', startDraw);
-            c.addEventListener('mousemove', draw);
-            c.addEventListener('mouseup', stopDraw);
-            c.addEventListener('mouseout', stopDraw);
-
-            // Touch support
-            c.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e.touches[0]); }, {passive: false});
-            c.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); }, {passive: false});
-            c.addEventListener('touchend', stopDraw);
+    _drawSmoothStroke(stroke) {
+        const pts = stroke.points;
+        if (pts.length < 2) return;
+        const ctx = this.ctx;
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        const p0 = this._denorm(pts[0]);
+        ctx.moveTo(p0.x, p0.y);
+        for (let i = 1; i < pts.length - 1; i++) {
+            const cur = this._denorm(pts[i]);
+            const next = this._denorm(pts[i+1]);
+            const mid = { x: (cur.x + next.x) / 2, y: (cur.y + next.y) / 2 };
+            ctx.quadraticCurveTo(cur.x, cur.y, mid.x, mid.y);
         }
+        const last = this._denorm(pts[pts.length - 1]);
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
 
-        function getMousePos(c, evt) {
-            const rect = c.getBoundingClientRect();
-            const scaleX = c.width / rect.width;
-            const scaleY = c.height / rect.height;
-            return {
-                x: (evt.clientX - rect.left) * scaleX,
-                y: (evt.clientY - rect.top) * scaleY
-            };
+        // arrowhead at end of path to show direction
+        if (pts.length >= 2) {
+            const prev = this._denorm(pts[pts.length - 2]);
+            const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
+            const size = 10;
+            ctx.beginPath();
+            ctx.moveTo(last.x, last.y);
+            ctx.lineTo(last.x - size * Math.cos(angle - Math.PI/6), last.y - size * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(last.x - size * Math.cos(angle + Math.PI/6), last.y - size * Math.sin(angle + Math.PI/6));
+            ctx.closePath();
+            ctx.fillStyle = stroke.color;
+            ctx.fill();
         }
+    }
 
-        function redrawCanvas(context, pathStorage) {
-            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-            if (fieldImage.complete && fieldImage.naturalHeight !== 0) {
-                context.drawImage(fieldImage, 0, 0, context.canvas.width, context.canvas.height);
-            } else {
-                context.fillStyle = '#1a1a1a';
-                context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-                context.fillStyle = '#fff';
-                context.font = "20px Arial";
-                context.fillText("Loading Field Image...", 20, 40);
+    _denorm(pt) { return { x: pt.x * this.cssW, y: pt.y * this.cssH }; }
+
+    redraw() {
+        this.ctx.clearRect(0, 0, this.cssW, this.cssH);
+        for (const key in this.strokesByColor) {
+            for (const stroke of this.strokesByColor[key]) this._drawSmoothStroke(stroke);
+        }
+        if (this.currentStroke) this._drawSmoothStroke(this.currentStroke);
+    }
+
+    setStrokesForColor(color, strokes) {
+        this.strokesByColor[color] = strokes ? JSON.parse(JSON.stringify(strokes)) : [];
+        this.redraw();
+    }
+
+    clearColor(color) {
+        this.strokesByColor[color] = [];
+        this.redraw();
+    }
+
+    clearAll() {
+        this.strokesByColor = {};
+        this.redraw();
+    }
+
+    undoColor(color) {
+        const arr = this.strokesByColor[color];
+        if (arr && arr.length) arr.pop();
+        this.redraw();
+    }
+
+    getStrokesForColor(color) {
+        return this.strokesByColor[color] || [];
+    }
+
+    exportPng() {
+        return this.canvas.toDataURL("image/png");
+    }
+}
+
+/* =========================================================================
+   APPLICATION STATE
+   ========================================================================= */
+const state = {
+    eventCode: null,
+    eventData: null,       // { teamEvents, matches, fetchedAt }
+    matches: [],
+    currentMatch: null,
+    slots: {},             // slot -> { team:null, autoList:[], autoIndex:-1 }
+    activeSlot: "R1",
+    refreshTimer: null
+};
+SLOT_KEYS.forEach(k => state.slots[k] = { team: null, autoList: [], autoIndex: -1 });
+
+let dbActiveColor = SLOT_COLORS.R1;
+let dbCurrentTeam = null;
+
+/* =========================================================================
+   TAB SWITCHING
+   ========================================================================= */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+        // Recalculate canvas sizing since panel visibility changes layout
+        setTimeout(() => { strategyCanvas._resize(); dbCanvas._resize(); }, 10);
+    });
+});
+
+/* =========================================================================
+   CANVAS INSTANCES
+   ========================================================================= */
+const strategyCanvas = new PathCanvas(
+    document.getElementById("canvasStrategy"),
+    document.getElementById("canvasWrapStrategy"),
+    { getActiveColor: () => SLOT_COLORS[state.activeSlot] }
+);
+
+const dbCanvas = new PathCanvas(
+    document.getElementById("canvasDb"),
+    document.getElementById("canvasWrapDb"),
+    { getActiveColor: () => dbActiveColor,
+      onStrokeEnd: () => { document.getElementById("saveDbBtn").disabled = !dbCurrentTeam; } }
+);
+
+/* =========================================================================
+   BUILD SLOT TOOLBARS
+   ========================================================================= */
+function buildSlotToolbar(container, { onSelect, showTeamNumber }) {
+    container.innerHTML = "";
+    SLOT_KEYS.forEach(key => {
+        const btn = document.createElement("button");
+        btn.className = "slot-btn";
+        btn.style.background = SLOT_COLORS[key];
+        btn.dataset.slot = key;
+        btn.innerHTML = `${SLOT_LABELS[key]}<span class="num">${showTeamNumber ? (state.slots[key].team || "--") : ""}</span>`;
+        btn.addEventListener("click", () => onSelect(key, btn));
+        container.appendChild(btn);
+    });
+}
+
+function refreshStrategySlotToolbar() {
+    buildSlotToolbar(document.getElementById("slotToolbar"), {
+        showTeamNumber: true,
+        onSelect: (key) => {
+            state.activeSlot = key;
+            document.querySelectorAll("#slotToolbar .slot-btn").forEach(b => b.classList.toggle("active", b.dataset.slot === key));
+            renderCycleControls();
+        }
+    });
+    document.querySelectorAll("#slotToolbar .slot-btn").forEach(b => b.classList.toggle("active", b.dataset.slot === state.activeSlot));
+}
+
+buildSlotToolbar(document.getElementById("dbColorToolbar"), {
+    showTeamNumber: false,
+    onSelect: (key, btn) => {
+        dbActiveColor = SLOT_COLORS[key];
+        document.querySelectorAll("#dbColorToolbar .slot-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+    }
+});
+// default active color selection for DB tab
+document.querySelector("#dbColorToolbar .slot-btn").classList.add("active");
+
+refreshStrategySlotToolbar();
+
+/* =========================================================================
+   EVENT LOADING (TAB 1)
+   ========================================================================= */
+const eventStatusEl = document.getElementById("eventStatus");
+const matchSelectEl = document.getElementById("matchSelect");
+
+async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
+    eventStatusEl.textContent = "Loading...";
+    eventStatusEl.className = "status-text";
+    try {
+        let data = loadEventCache(eventCode);
+        if (!fromCacheOnly) {
+            data = await fetchStatboticsEvent(eventCode);
+            saveEventCache(eventCode, data);
+        }
+        if (!data) throw new Error("No data available (offline and no cache).");
+
+        state.eventCode = eventCode;
+        state.eventData = data;
+        state.matches = (data.matches || []).slice().sort((a,b) => {
+            const order = { qm:0, ef:1, qf:2, sf:3, f:4 };
+            const la = order[a.comp_level] ?? 0, lb = order[b.comp_level] ?? 0;
+            if (la !== lb) return la - lb;
+            return (a.match_number||0) - (b.match_number||0);
+        });
+
+        populateMatchSelect();
+        matchSelectEl.disabled = false;
+        document.getElementById("refreshMatchesBtn").disabled = false;
+        populateDbTeamSelect();
+
+        const age = Math.round((Date.now() - data.fetchedAt) / 60000);
+        eventStatusEl.textContent = `Loaded ${eventCode} — ${state.matches.length} matches (updated ${age === 0 ? "just now" : age + "m ago"})`;
+        eventStatusEl.classList.add("ok");
+
+        restartAutoRefresh();
+    } catch (err) {
+        console.error(err);
+        eventStatusEl.textContent = "Error: " + err.message;
+        eventStatusEl.classList.add("err");
+    }
+}
+
+function restartAutoRefresh() {
+    if (state.refreshTimer) clearInterval(state.refreshTimer);
+    state.refreshTimer = setInterval(() => {
+        if (state.eventCode) loadEvent(state.eventCode);
+    }, AUTO_REFRESH_MS);
+}
+
+document.getElementById("loadEventBtn").addEventListener("click", () => {
+    const code = document.getElementById("eventCodeInput").value.trim();
+    if (code) loadEvent(code);
+});
+document.getElementById("refreshMatchesBtn").addEventListener("click", () => {
+    if (state.eventCode) loadEvent(state.eventCode);
+});
+
+function populateMatchSelect() {
+    matchSelectEl.innerHTML = "";
+    state.matches.forEach((m, i) => {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = matchLabel(m);
+        matchSelectEl.appendChild(opt);
+    });
+    if (state.matches.length) {
+        matchSelectEl.value = 0;
+        selectMatch(0);
+    }
+}
+
+matchSelectEl.addEventListener("change", () => selectMatch(Number(matchSelectEl.value)));
+
+async function selectMatch(index) {
+    const m = state.matches[index];
+    if (!m) return;
+    state.currentMatch = m;
+
+    const redTeams = extractAllianceTeams(m, "red");
+    const blueTeams = extractAllianceTeams(m, "blue");
+    const assignment = { R1: redTeams[0], R2: redTeams[1], R3: redTeams[2], B1: blueTeams[0], B2: blueTeams[1], B3: blueTeams[2] };
+
+    for (const key of SLOT_KEYS) {
+        state.slots[key].team = assignment[key] || null;
+        state.slots[key].autoList = [];
+        state.slots[key].autoIndex = -1;
+        strategyCanvas.clearColor(SLOT_COLORS[key]);
+        if (assignment[key]) {
+            const autos = await dbGetAutosForTeam(assignment[key]);
+            state.slots[key].autoList = autos;
+            if (autos.length) {
+                state.slots[key].autoIndex = 0;
+                strategyCanvas.setStrokesForColor(SLOT_COLORS[key], autos[0].strokes);
             }
+        }
+    }
 
-            // Draw paths
-            pathStorage.forEach(stroke => {
-                if(stroke.points.length === 0) return;
-                context.beginPath();
-                context.strokeStyle = stroke.color;
-                context.lineWidth = 4;
-                context.lineJoin = "round";
-                context.lineCap = "round";
-                
-                // Glowing line effect
-                context.shadowColor = stroke.color;
-                context.shadowBlur = 8;
+    refreshStrategySlotToolbar();
+    renderAllianceCards(m, redTeams, blueTeams);
+    renderCycleControls();
+}
 
-                context.moveTo(stroke.points[0].x, stroke.points[0].y);
-                for (let i = 1; i < stroke.points.length; i++) {
-                    context.lineTo(stroke.points[i].x, stroke.points[i].y);
+function teamEventLookup(teamNum) {
+    if (!state.eventData) return null;
+    const list = state.eventData.teamEvents || [];
+    return list.find(t => Number(t.team ?? t.team_number) === Number(teamNum));
+}
+
+function renderAllianceCards(match, redTeams, blueTeams) {
+    const redEl = document.getElementById("redTeamCards");
+    const blueEl = document.getElementById("blueTeamCards");
+    redEl.innerHTML = "";
+    blueEl.innerHTML = "";
+
+    const buildCard = (team, slotKey) => {
+        const te = teamEventLookup(team);
+        const epa = extractTeamEpa(te);
+        const div = document.createElement("div");
+        div.className = "team-card";
+        div.innerHTML = `
+            <div class="team-swatch" style="background:${SLOT_COLORS[slotKey]}"></div>
+            <div class="team-info">
+                <div class="team-number">#${team ?? "?"}</div>
+                <div class="team-epa">${epa !== null ? "EPA: " + epa : "EPA data unavailable"}</div>
+            </div>`;
+        return div;
+    };
+
+    redTeams.forEach((t, i) => redEl.appendChild(buildCard(t, "R" + (i+1))));
+    blueTeams.forEach((t, i) => blueEl.appendChild(buildCard(t, "B" + (i+1))));
+    if (!redTeams.length) redEl.innerHTML = '<div class="empty-note">No team data for this match.</div>';
+    if (!blueTeams.length) blueEl.innerHTML = '<div class="empty-note">No team data for this match.</div>';
+
+    const p = extractWinProb(match);
+    const redPct = p !== null ? Math.round(p * 100) : null;
+    document.getElementById("redWinPct").textContent = redPct !== null ? redPct + "%" : "--%";
+    document.getElementById("blueWinPct").textContent = redPct !== null ? (100 - redPct) + "%" : "--%";
+}
+
+/* =========================================================================
+   CYCLE THROUGH SAVED AUTOS (per slot)
+   ========================================================================= */
+function renderCycleControls() {
+    const slot = state.slots[state.activeSlot];
+    const label = document.getElementById("cycleLabel");
+    if (!slot.team) {
+        label.textContent = "No team assigned to this slot";
+        return;
+    }
+    if (!slot.autoList.length) {
+        label.textContent = `No saved autos for team #${slot.team}`;
+    } else {
+        label.textContent = `Team #${slot.team} — Auto ${slot.autoIndex + 1} of ${slot.autoList.length}`;
+    }
+}
+
+function cycleAuto(direction) {
+    const slot = state.slots[state.activeSlot];
+    if (!slot.team || !slot.autoList.length) return;
+    slot.autoIndex = (slot.autoIndex + direction + slot.autoList.length) % slot.autoList.length;
+    strategyCanvas.setStrokesForColor(SLOT_COLORS[state.activeSlot], slot.autoList[slot.autoIndex].strokes);
+    renderCycleControls();
+}
+document.getElementById("cyclePrev").addEventListener("click", () => cycleAuto(-1));
+document.getElementById("cycleNext").addEventListener("click", () => cycleAuto(1));
+
+/* =========================================================================
+   TAB 1 ACTIONS: undo / clear / save / download / qr
+   ========================================================================= */
+document.getElementById("undoStrategyBtn").addEventListener("click", () => {
+    strategyCanvas.undoColor(SLOT_COLORS[state.activeSlot]);
+});
+document.getElementById("clearSlotBtn").addEventListener("click", () => {
+    strategyCanvas.clearColor(SLOT_COLORS[state.activeSlot]);
+});
+
+document.getElementById("savePathBtn").addEventListener("click", async () => {
+    const slot = state.slots[state.activeSlot];
+    if (!slot.team) { alert("This slot has no team assigned yet — load a match first."); return; }
+    const strokes = strategyCanvas.getStrokesForColor(SLOT_COLORS[state.activeSlot]);
+    if (!strokes.length) { alert("Draw a path before saving."); return; }
+    await dbAddAuto(slot.team, strokes);
+    slot.autoList = await dbGetAutosForTeam(slot.team);
+    slot.autoIndex = slot.autoList.length - 1;
+    renderCycleControls();
+    alert(`Saved auto path for team #${slot.team}.`);
+});
+
+function buildFileName() {
+    const parts = SLOT_KEYS.map(k => {
+        const prefixMap = { R1:"R1", R2:"R2", R3:"R3", B1:"B1", B2:"B2", B3:"B3" };
+        const team = state.slots[k].team || "TBD";
+        return `${prefixMap[k]}-${team}`;
+    });
+    const matchNum = state.currentMatch ? matchLabel(state.currentMatch).replace(/\s+/g, "") : "M00";
+    return `${matchNum}_${parts.join("_")}.png`;
+}
+
+document.getElementById("downloadPngBtn").addEventListener("click", () => {
+    const dataUrl = strategyCanvas.exportPng();
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = buildFileName();
+    a.click();
+});
+
+/* ---- QR Code: serialize state into URL, render with qrcode.js ---- */
+document.getElementById("qrCodeBtn").addEventListener("click", () => {
+    const payload = {
+        event: state.eventCode,
+        matchIdx: state.matches.indexOf(state.currentMatch),
+        slots: {}
+    };
+    SLOT_KEYS.forEach(k => {
+        payload.slots[k] = {
+            team: state.slots[k].team,
+            strokes: strategyCanvas.getStrokesForColor(SLOT_COLORS[k])
+        };
+    });
+    const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+    const url = `${QR_TARGET_URL}?state=${encoded}`;
+
+    document.getElementById("qrUrlBox").textContent = url;
+    const qrImg = document.getElementById("qrImage");
+
+    // Render a hidden div-based QR via qrcode.js, then transfer to <img>
+    const tempDiv = document.createElement("div");
+    new QRCode(tempDiv, { text: url, width: 220, height: 220 });
+    setTimeout(() => {
+        const img = tempDiv.querySelector("img");
+        const canvas = tempDiv.querySelector("canvas");
+        if (img && img.src) qrImg.src = img.src;
+        else if (canvas) qrImg.src = canvas.toDataURL("image/png");
+    }, 60);
+
+    document.getElementById("qrModalOverlay").classList.add("open");
+});
+document.getElementById("qrCloseBtn").addEventListener("click", () => {
+    document.getElementById("qrModalOverlay").classList.remove("open");
+});
+document.getElementById("qrCopyBtn").addEventListener("click", () => {
+    const text = document.getElementById("qrUrlBox").textContent;
+    navigator.clipboard?.writeText(text).then(() => alert("Link copied!")).catch(() => {});
+});
+
+/* Restore state from URL params on load */
+function restoreFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get("state");
+    if (!encoded) return;
+    try {
+        const payload = JSON.parse(decodeURIComponent(atob(encoded)));
+        (async () => {
+            if (payload.event) {
+                document.getElementById("eventCodeInput").value = payload.event;
+                await loadEvent(payload.event);
+                if (typeof payload.matchIdx === "number" && state.matches[payload.matchIdx]) {
+                    matchSelectEl.value = payload.matchIdx;
+                    await selectMatch(payload.matchIdx);
                 }
-                context.stroke();
-                
-                context.shadowBlur = 0; // reset
+            }
+            SLOT_KEYS.forEach(k => {
+                const s = payload.slots?.[k];
+                if (s && s.strokes) {
+                    if (s.team) state.slots[k].team = s.team;
+                    strategyCanvas.setStrokesForColor(SLOT_COLORS[k], s.strokes);
+                }
             });
-        }
+            refreshStrategySlotToolbar();
+        })();
+    } catch (e) {
+        console.warn("Could not restore state from URL", e);
+    }
+}
 
-        function clearCanvas() { paths = []; redrawCanvas(ctx, paths); }
-        function undoLastStroke() { paths.pop(); redrawCanvas(ctx, paths); }
-        function clearDBCanvas() { dbPaths = []; redrawCanvas(dbCtx, dbPaths); }
+/* =========================================================================
+   TAB 2: AUTO DATABASE
+   ========================================================================= */
+function populateDbTeamSelect() {
+    const sel = document.getElementById("dbTeamSelectKnown");
+    sel.innerHTML = '<option value="">-- teams from last loaded event --</option>';
+    const teams = (state.eventData?.teamEvents || [])
+        .map(t => Number(t.team ?? t.team_number))
+        .filter(Boolean)
+        .sort((a,b) => a-b);
+    teams.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = "#" + t;
+        sel.appendChild(opt);
+    });
+}
 
-        // API Integration (Statbotics)
-        async function fetchStatboticsData(isBackground = false) {
-            // Force lowercase as Statbotics API requires it (e.g., 2024txhou)
-            let rawCode = document.getElementById('event-code-input').value.trim() || eventCode;
-            const code = rawCode.toLowerCase(); 
+document.getElementById("dbLoadTeamBtn").addEventListener("click", () => {
+    const manual = document.getElementById("dbTeamManual").value.trim();
+    const known = document.getElementById("dbTeamSelectKnown").value;
+    const team = manual || known;
+    if (!team) { alert("Enter or select a team number."); return; }
+    loadDbTeam(Number(team));
+});
 
-            if(!code) return alert("Enter an event code.");
-            
-            const statusEl = document.getElementById('api-status');
-            statusEl.innerText = "Status: Fetching...";
-            statusEl.style.color = "var(--primary-orange)";
+async function loadDbTeam(team) {
+    dbCurrentTeam = team;
+    document.getElementById("dbTeamStatus").textContent = `Editing team #${team}`;
+    dbCanvas.clearAll();
+    document.getElementById("saveDbBtn").disabled = true;
+    await refreshDbGallery();
+}
 
-            try {
-                // Fetch Teams Data with enhanced error catching
-                const teamsUrl = `https://api.statbotics.io/v3/team_events?event=${code}`;
-                const teamsRes = await fetch(teamsUrl, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' },
-                    mode: 'cors' 
-                });
-                
-                if (!teamsRes.ok) {
-                    throw new Error(`Teams API failed: ${teamsRes.status} ${teamsRes.statusText}. Code might be invalid.`);
-                }
-                
-                const teamsJson = await teamsRes.json();
-                teamsData = {};
-                teamsJson.forEach(t => { teamsData[t.team] = t.epa ? t.epa.total_points.mean : 0; });
-                
-                // Fetch Matches Data
-                const matchesUrl = `https://api.statbotics.io/v3/matches?event=${code}`;
-                const matchesRes = await fetch(matchesUrl, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' },
-                    mode: 'cors'
-                });
-                
-                if (!matchesRes.ok) {
-                    throw new Error(`Matches API failed: ${matchesRes.status} ${matchesRes.statusText}`);
-                }
+document.getElementById("undoDbBtn").addEventListener("click", () => dbCanvas.undoColor(dbActiveColor));
+document.getElementById("clearDbBtn").addEventListener("click", () => dbCanvas.clearAll());
 
-                const matchesJson = await matchesRes.json();
-                matchesData = matchesJson.sort((a,b) => a.match_number - b.match_number);
-                
-                // Save state
-                eventCode = code;
-                localStorage.setItem('frc_event_code', eventCode);
-                localStorage.setItem('frc_matches_data', JSON.stringify(matchesData));
-                localStorage.setItem('frc_teams_data', JSON.stringify(teamsData));
+document.getElementById("saveDbBtn").addEventListener("click", async () => {
+    if (!dbCurrentTeam) return;
+    const allStrokes = Object.values(dbCanvas.strokesByColor).flat();
+    if (!allStrokes.length) { alert("Draw a path before saving."); return; }
+    await dbAddAuto(dbCurrentTeam, allStrokes);
+    dbCanvas.clearAll();
+    document.getElementById("saveDbBtn").disabled = true;
+    await refreshDbGallery();
+});
 
-                statusEl.innerText = `Status: Synced at ${new Date().toLocaleTimeString()}`;
-                statusEl.style.color = "#00ff88"; // Success green
-                
-                if(!isBackground) {
-                    populateMatchSelector();
-                    alert("Data synced successfully!");
-                }
-            } catch (err) {
-                console.error("Statbotics API Error: ", err);
-                // Print exact error to UI so you don't have to check console
-                statusEl.innerText = err.message.includes("Failed to fetch") 
-                    ? "Status: Network Error (Check Adblocker/CORS)" 
-                    : `Status: ${err.message}`;
-                statusEl.style.color = "#ff4444";
-                
-                if(!isBackground) {
-                    alert(`Failed to fetch data.\n\nReason: ${err.message}\n\nIf it says "Failed to fetch", please check your browser adblocker or try hosting the file locally.`);
-                }
+async function refreshDbGallery() {
+    const galleryEl = document.getElementById("dbGallery");
+    document.getElementById("dbGalleryTeamLabel").textContent = dbCurrentTeam ? `— Team #${dbCurrentTeam}` : "";
+    if (!dbCurrentTeam) {
+        galleryEl.innerHTML = '<div class="empty-note">Load a team to view its saved autos.</div>';
+        return;
+    }
+    const autos = await dbGetAutosForTeam(dbCurrentTeam);
+    if (!autos.length) {
+        galleryEl.innerHTML = '<div class="empty-note">No saved autos yet for this team.</div>';
+        return;
+    }
+    galleryEl.innerHTML = "";
+    autos.forEach(auto => {
+        const item = document.createElement("div");
+        item.className = "gallery-item";
+        const img = document.createElement("img");
+        img.src = renderThumbnail(auto.strokes);
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.innerHTML = `<span>${new Date(auto.createdAt).toLocaleDateString()}</span>`;
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "✕";
+        delBtn.title = "Delete this auto";
+        delBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (confirm("Delete this saved auto path?")) {
+                await dbDeleteAuto(auto.id);
+                refreshDbGallery();
             }
+        });
+        meta.appendChild(delBtn);
+        item.appendChild(img);
+        item.appendChild(meta);
+        item.addEventListener("click", () => {
+            dbCanvas.clearAll();
+            const grouped = {};
+            auto.strokes.forEach(s => { (grouped[s.color] ||= []).push(s); });
+            Object.entries(grouped).forEach(([color, strokes]) => dbCanvas.setStrokesForColor(color, strokes));
+        });
+        galleryEl.appendChild(item);
+    });
+}
+
+function renderThumbnail(strokes) {
+    const c = document.createElement("canvas");
+    c.width = 270; c.height = 155;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#223";
+    ctx.fillRect(0, 0, c.width, c.height);
+    strokes.forEach(stroke => {
+        if (stroke.points.length < 2) return;
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        const p0 = stroke.points[0];
+        ctx.moveTo(p0.x * c.width, p0.y * c.height);
+        for (let i = 1; i < stroke.points.length - 1; i++) {
+            const cur = stroke.points[i], next = stroke.points[i+1];
+            const cx = cur.x * c.width, cy = cur.y * c.height;
+            const mx = ((cur.x + next.x) / 2) * c.width, my = ((cur.y + next.y) / 2) * c.height;
+            ctx.quadraticCurveTo(cx, cy, mx, my);
         }
+        const last = stroke.points[stroke.points.length - 1];
+        ctx.lineTo(last.x * c.width, last.y * c.height);
+        ctx.stroke();
+    });
+    return c.toDataURL("image/png");
+}
 
-        function populateMatchSelector() {
-            const selector = document.getElementById('match-selector');
-            selector.innerHTML = '';
-            if(!matchesData || matchesData.length === 0) {
-                selector.innerHTML = '<option>No Matches Found</option>';
-                return;
-            }
+/* =========================================================================
+   INIT
+   ========================================================================= */
+restoreFromUrl();
 
-            matchesData.forEach((m, index) => {
-                const opt = document.createElement('option');
-                opt.value = index;
-                opt.text = `${m.comp_level.toUpperCase()} ${m.match_number}`;
-                selector.appendChild(opt);
-            });
-            loadMatchData();
-        }
-
-        // Load Match into Strategy
-        function loadMatchData() {
-            const selector = document.getElementById('match-selector');
-            if(!selector.value) return;
-            
-            activeMatch = matchesData[selector.value];
-            if(!activeMatch) return;
-
-            // Statbotics v3 structure
-            const r1 = activeMatch.red_1 || activeMatch.red_1_team || "???";
-            const r2 = activeMatch.red_2 || activeMatch.red_2_team || "???";
-            const r3 = activeMatch.red_3 || activeMatch.red_3_team || "???";
-            const b1 = activeMatch.blue_1 || activeMatch.blue_1_team || "???";
-            const b2 = activeMatch.blue_2 || activeMatch.blue_2_team || "???";
-            const b3 = activeMatch.blue_3 || activeMatch.blue_3_team || "???";
-
-            const buildTeamRow = (allianceId, teamNum, colorCode) => {
-                const epa = teamsData[teamNum] ? teamsData[teamNum].toFixed(1) : 'N/A';
-                return `
-                    <div class="team-row">
-                        <span><strong>${allianceId}:</strong> ${teamNum} <span style="color:var(--text-muted); font-size:11px;">(EPA: ${epa})</span></span>
-                        <button class="cycle-auto-btn" onclick="cycleAutoIntoStrategy('${allianceId}', '${teamNum}', '${colorCode}')">Load Auto</button>
-                    </div>`;
-            };
-
-            document.getElementById('red-alliance-info').innerHTML = 
-                buildTeamRow('R1', r1, '#ff4444') + 
-                buildTeamRow('R2', r2, '#ff0000') + 
-                buildTeamRow('R3', r3, '#bb0000');
-
-            document.getElementById('blue-alliance-info').innerHTML = 
-                buildTeamRow('B1', b1, '#66b3ff') + 
-                buildTeamRow('B2', b2, '#0055ff') + 
-                buildTeamRow('B3', b3, '#0000bb');
-                
-            // Update Data attributes on color buttons for naming
-            document.querySelector('.c-r1').innerText = r1;
-            document.querySelector('.c-r2').innerText = r2;
-            document.querySelector('.c-r3').innerText = r3;
-            document.querySelector('.c-b1').innerText = b1;
-            document.querySelector('.c-b2').innerText = b2;
-            document.querySelector('.c-b3').innerText = b3;
-            
-            clearCanvas();
-            document.getElementById('qr-container').style.display = 'none';
-        }
-
-        // DB Operations
-        function saveAutoToDB() {
-            const team = document.getElementById('db-team-input').value.trim();
-            const slot = document.getElementById('db-slot-input').value;
-            
-            if(!team) return alert("Enter a team number");
-            if(dbPaths.length === 0) return alert("Draw an auto path first");
-
-            if(!autosDB[team]) autosDB[team] = { "1": [], "2": [], "3": [] };
-            autosDB[team][slot] = JSON.parse(JSON.stringify(dbPaths)); // deep copy
-            
-            localStorage.setItem('frc_autos_db', JSON.stringify(autosDB));
-            alert(`Saved to Team ${team} Memory Slot ${slot}`);
-        }
-
-        function loadDBTeam() {
-            const team = document.getElementById('db-team-input').value.trim();
-            const slot = document.getElementById('db-slot-input').value;
-            dbPaths = [];
-            
-            if(team && autosDB[team] && autosDB[team][slot]) {
-                dbPaths = JSON.parse(JSON.stringify(autosDB[team][slot]));
-            }
-            redrawCanvas(dbCtx, dbPaths);
-        }
-
-        // State tracker for cycling autos
-        const autoCycleState = {}; 
-
-        function cycleAutoIntoStrategy(allianceId, teamNum, colorCode) {
-            if(!autosDB[teamNum]) return alert(`No paths found in Memory for team ${teamNum}`);
-            
-            if(!autoCycleState[teamNum]) autoCycleState[teamNum] = 1;
-            else autoCycleState[teamNum] = autoCycleState[teamNum] === 3 ? 1 : autoCycleState[teamNum] + 1;
-            
-            const slot = autoCycleState[teamNum].toString();
-            const savedPaths = autosDB[teamNum][slot];
-
-            if(savedPaths && savedPaths.length > 0) {
-                // Remove existing paths for this team slot in strategy canvas
-                paths = paths.filter(p => p.team !== allianceId);
-                
-                // Inject the loaded paths, changing their color to the strategy alliance color
-                savedPaths.forEach(sp => {
-                    const mappedPath = {
-                        team: allianceId,
-                        color: colorCode,
-                        points: sp.points
-                    };
-                    paths.push(mappedPath);
-                });
-                
-                redrawCanvas(ctx, paths);
-            } else {
-                alert(`Memory Slot ${slot} for Team ${teamNum} is empty. Cycling...`);
-            }
-        }
-
-        // Exporting
-        function getDownloadFilename() {
-            if(!activeMatch) return "Auto_Paths.png";
-            
-            const m = activeMatch.match_number;
-            const r1 = activeMatch.red_1 || "X"; const r2 = activeMatch.red_2 || "X"; const r3 = activeMatch.red_3 || "X";
-            const b1 = activeMatch.blue_1 || "X"; const b2 = activeMatch.blue_2 || "X"; const b3 = activeMatch.blue_3 || "X";
-            
-            return `M${m}_R1-${r1}_R2-${r2}_R3-${r3}_B1-${b1}_B2-${b2}_B3-${b3}.png`;
-        }
-
-        function downloadFieldImage() {
-            const dataUrl = canvas.toDataURL("image/png");
-            const link = document.createElement('a');
-            link.download = getDownloadFilename();
-            link.href = dataUrl;
-            link.click();
-        }
-
-        function generateQR() {
-            const qrContainer = document.getElementById('qr-container');
-            const qrDiv = document.getElementById('qrcode');
-            qrDiv.innerHTML = ''; // clear old
-            qrContainer.style.display = 'flex';
-
-            // Compress paths to avoid QR size limit
-            // Format: [{ t:"R1", p:[[x,y],...] }]
-            const compressed = paths.map(stroke => {
-                // Keep only every 5th point to heavily reduce JSON size
-                const simplifiedPts = stroke.points.filter((_, i) => i % 5 === 0).map(pt => [Math.round(pt.x), Math.round(pt.y)]);
-                return { t: stroke.team, p: simplifiedPts };
-            });
-
-            const dataStr = JSON.stringify(compressed);
-
-            try {
-                new QRCode(qrDiv, {
-                    text: dataStr,
-                    width: 220,
-                    height: 220,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.L // Lowest error correction allows more data
-                });
-            } catch (e) {
-                qrDiv.innerHTML = '<span style="color:#ff4444; font-size:12px; text-align:center;">Drawing too complex for QR code.<br>Please simplify paths.</span>';
-            }
-        }
-
-    </script>
+})();
+</script>
 </body>
 </html>
