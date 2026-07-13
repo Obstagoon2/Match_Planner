@@ -323,6 +323,21 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
 
 .empty-note { color: var(--dark-gray); font-size: 13px; text-align:center; padding: 20px; }
 
+.roster-item {
+    border: 2px solid var(--border-color-soft);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--bg-surface);
+    cursor: pointer;
+    transition: border-color var(--transition-speed);
+}
+.roster-item:hover { border-color: var(--primary-blue); }
+.roster-item .rn { font-weight: 700; font-size: 14px; color: var(--text-main); }
+.roster-item .rname { font-size: 12px; color: var(--dark-gray); margin-top: 2px; }
+.roster-item .ractions { display:flex; justify-content:flex-end; gap:10px; margin-top: 6px; }
+.roster-item .ractions button { border:none; background:none; cursor:pointer; font-size: 12px; color: var(--secondary-blue); }
+.roster-item .ractions button.del { color: #c1121f; }
+
 /* ---------- Modal ---------- */
 .modal-overlay {
     display:none;
@@ -512,10 +527,31 @@ footer.tiny-note { text-align:center; color: var(--dark-gray); font-size: 11px; 
     <section id="tab-database" class="tab-panel">
 
         <div class="card">
+            <div class="row" style="justify-content:space-between;">
+                <div class="section-title" style="margin-bottom:0;">Team Roster <span style="text-transform:none;font-weight:400;color:var(--dark-gray);">— works fully offline, no event needs to be loaded</span></div>
+                <div class="row" style="gap:8px;">
+                    <button class="btn ghost small" id="exportDataBtn">Export Data</button>
+                    <button class="btn ghost small" id="importDataBtn">Import Data</button>
+                    <input type="file" id="importDataFile" accept="application/json" style="display:none;">
+                </div>
+            </div>
+            <p class="status-text" style="margin: 4px 0 12px;">Walking the pits with no signal? Add teams here by number and name as you scout them — everything's saved on this device and will line up automatically once you load the event.</p>
+            <div class="row">
+                <input type="text" id="rosterTeamNumber" placeholder="Team #" style="max-width:110px;">
+                <input type="text" id="rosterTeamName" placeholder="Team name (optional)">
+                <button class="btn" id="rosterAddBtn">Add / Update Team</button>
+                <span class="status-text" id="rosterStatus"></span>
+            </div>
+            <div class="gallery" id="rosterList" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top:14px;">
+                <div class="empty-note">No teams added yet.</div>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="section-title">Select Team</div>
             <div class="row">
                 <select id="dbTeamSelectKnown">
-                    <option value="">-- teams from last loaded event --</option>
+                    <option value="">-- roster / loaded event teams --</option>
                 </select>
                 <input type="text" id="dbTeamManual" placeholder="Or enter team # manually">
                 <button class="btn" id="dbLoadTeamBtn">Load Team</button>
@@ -1108,7 +1144,9 @@ async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
         populateMatchSelect();
         matchSelectEl.disabled = false;
         document.getElementById("refreshMatchesBtn").disabled = false;
+        autoFillRosterFromEvent(data);
         populateDbTeamSelect();
+        renderRosterList();
 
         const age = Math.round((Date.now() - data.fetchedAt) / 60000);
         const ageText = age === 0 ? "just now" : age + "m ago";
@@ -1203,12 +1241,13 @@ function renderAllianceCards(match, redTeams, blueTeams) {
     const buildCard = (team, slotKey) => {
         const te = teamEventLookup(team);
         const epa = extractTeamEpa(te);
+        const name = team ? lookupTeamName(team) : null;
         const div = document.createElement("div");
         div.className = "team-card";
         div.innerHTML = `
             <div class="team-swatch" style="background:${SLOT_COLORS[slotKey]}"></div>
             <div class="team-info">
-                <div class="team-number">#${team ?? "?"}</div>
+                <div class="team-number">#${team ?? "?"}${name ? ` — ${name}` : ""}</div>
                 <div class="team-epa">${epa !== null ? "EPA: " + epa : "EPA data unavailable"}</div>
             </div>`;
         return div;
@@ -1362,19 +1401,188 @@ function restoreFromUrl() {
 }
 
 /* =========================================================================
+   TEAM ROSTER — fully offline, independent of Statbotics
+   ---------------------------------------------------------------------
+   Lets someone start at a competition with zero connectivity, walk the
+   pits, and record team numbers/names and auto paths as they go. Stored
+   in localStorage under ROSTER_KEY. Once an event is later loaded (or
+   connectivity returns), Statbotics team numbers line up automatically
+   with whatever was scouted offline since everything is keyed by team
+   number; any name Statbotics provides is used to fill in roster entries
+   that don't already have a manually-entered name.
+   ========================================================================= */
+const ROSTER_KEY = "frcTeamRoster";
+
+function getRoster() {
+    try { return JSON.parse(localStorage.getItem(ROSTER_KEY)) || {}; }
+    catch (e) { return {}; }
+}
+function saveRoster(roster) {
+    try { localStorage.setItem(ROSTER_KEY, JSON.stringify(roster)); }
+    catch (e) { console.warn("Could not save roster", e); }
+}
+function upsertRosterTeam(number, name) {
+    const roster = getRoster();
+    const key = String(Number(number));
+    roster[key] = { name: (name || "").trim(), updatedAt: Date.now() };
+    saveRoster(roster);
+    return roster;
+}
+function deleteRosterTeam(number) {
+    const roster = getRoster();
+    delete roster[String(Number(number))];
+    saveRoster(roster);
+}
+function autoFillRosterFromEvent(data) {
+    const roster = getRoster();
+    let changed = false;
+    (data?.teamEvents || []).forEach(t => {
+        const num = Number(t.team ?? t.team_number);
+        const name = t.name ?? t.team_name ?? t.nickname;
+        if (!num || !name) return;
+        const key = String(num);
+        if (!roster[key]) { roster[key] = { name, updatedAt: Date.now() }; changed = true; }
+        else if (!roster[key].name) { roster[key].name = name; changed = true; }
+    });
+    if (changed) saveRoster(roster);
+}
+function lookupTeamName(number) {
+    const roster = getRoster();
+    const entry = roster[String(Number(number))];
+    if (entry?.name) return entry.name;
+    const te = teamEventLookup(number);
+    return te?.name ?? te?.team_name ?? te?.nickname ?? null;
+}
+
+function renderRosterList() {
+    const listEl = document.getElementById("rosterList");
+    const roster = getRoster();
+    const entries = Object.entries(roster).sort((a,b) => Number(a[0]) - Number(b[0]));
+    if (!entries.length) {
+        listEl.innerHTML = '<div class="empty-note">No teams added yet.</div>';
+        return;
+    }
+    listEl.innerHTML = "";
+    entries.forEach(([num, info]) => {
+        const item = document.createElement("div");
+        item.className = "roster-item";
+        item.innerHTML = `
+            <div class="rn">#${num}</div>
+            <div class="rname">${info.name ? info.name : '<em>no name yet</em>'}</div>
+            <div class="ractions">
+                <button class="edit">Edit</button>
+                <button class="load">Scout</button>
+                <button class="del">Delete</button>
+            </div>`;
+        item.querySelector(".load").addEventListener("click", (e) => {
+            e.stopPropagation();
+            document.getElementById("dbTeamManual").value = num;
+            loadDbTeam(Number(num));
+        });
+        item.querySelector(".edit").addEventListener("click", (e) => {
+            e.stopPropagation();
+            document.getElementById("rosterTeamNumber").value = num;
+            document.getElementById("rosterTeamName").value = info.name || "";
+        });
+        item.querySelector(".del").addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (confirm(`Remove team #${num} from the roster? (Saved auto paths are kept.)`)) {
+                deleteRosterTeam(num);
+                renderRosterList();
+                populateDbTeamSelect();
+            }
+        });
+        listEl.appendChild(item);
+    });
+}
+
+document.getElementById("rosterAddBtn").addEventListener("click", () => {
+    const numInput = document.getElementById("rosterTeamNumber");
+    const nameInput = document.getElementById("rosterTeamName");
+    const num = numInput.value.trim();
+    if (!num || isNaN(Number(num))) { alert("Enter a valid team number."); return; }
+    upsertRosterTeam(num, nameInput.value);
+    renderRosterList();
+    populateDbTeamSelect();
+    document.getElementById("rosterStatus").textContent = `Saved #${num}.`;
+    document.getElementById("rosterStatus").className = "status-text ok";
+    numInput.value = ""; nameInput.value = "";
+    numInput.focus();
+});
+
+/* ---- Export / Import full local dataset (roster + saved autos) ----
+   Useful for moving scouted data between devices, or backing it up,
+   entirely offline (no server round-trip involved). */
+document.getElementById("exportDataBtn").addEventListener("click", async () => {
+    const db = await openDb();
+    const autos = await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+    const payload = { exportedAt: Date.now(), roster: getRoster(), autos };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `frc-planner-data-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById("importDataBtn").addEventListener("click", () => {
+    document.getElementById("importDataFile").click();
+});
+document.getElementById("importDataFile").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        const payload = JSON.parse(text);
+
+        // Merge roster (imported names fill gaps, don't clobber local edits)
+        const roster = getRoster();
+        Object.entries(payload.roster || {}).forEach(([num, info]) => {
+            if (!roster[num]) roster[num] = info;
+            else if (!roster[num].name && info.name) roster[num].name = info.name;
+        });
+        saveRoster(roster);
+
+        // Merge autos (re-added as new records; IndexedDB will assign fresh ids)
+        for (const auto of (payload.autos || [])) {
+            await dbAddAuto(auto.team, auto.strokes);
+        }
+
+        renderRosterList();
+        populateDbTeamSelect();
+        if (dbCurrentTeam) await refreshDbGallery();
+        alert(`Imported ${Object.keys(payload.roster||{}).length} roster entries and ${(payload.autos||[]).length} saved autos.`);
+    } catch (err) {
+        console.error(err);
+        alert("Could not read that file — expected a JSON export from this tool.");
+    } finally {
+        e.target.value = "";
+    }
+});
+
+/* =========================================================================
    TAB 2: AUTO DATABASE
    ========================================================================= */
 function populateDbTeamSelect() {
     const sel = document.getElementById("dbTeamSelectKnown");
-    sel.innerHTML = '<option value="">-- teams from last loaded event --</option>';
-    const teams = (state.eventData?.teamEvents || [])
-        .map(t => Number(t.team ?? t.team_number))
-        .filter(Boolean)
-        .sort((a,b) => a-b);
-    teams.forEach(t => {
+    sel.innerHTML = '<option value="">-- roster / loaded event teams --</option>';
+    const roster = getRoster();
+    const teamNums = new Set(Object.keys(roster).map(Number));
+    (state.eventData?.teamEvents || []).forEach(t => {
+        const n = Number(t.team ?? t.team_number);
+        if (n) teamNums.add(n);
+    });
+    Array.from(teamNums).sort((a,b) => a-b).forEach(t => {
         const opt = document.createElement("option");
         opt.value = t;
-        opt.textContent = "#" + t;
+        const name = lookupTeamName(t);
+        opt.textContent = name ? `#${t} — ${name}` : "#" + t;
         sel.appendChild(opt);
     });
 }
@@ -1389,7 +1597,8 @@ document.getElementById("dbLoadTeamBtn").addEventListener("click", () => {
 
 async function loadDbTeam(team) {
     dbCurrentTeam = team;
-    document.getElementById("dbTeamStatus").textContent = `Editing team #${team}`;
+    const name = lookupTeamName(team);
+    document.getElementById("dbTeamStatus").textContent = name ? `Editing team #${team} — ${name}` : `Editing team #${team}`;
     dbCanvas.clearAll();
     document.getElementById("saveDbBtn").disabled = true;
     await refreshDbGallery();
@@ -1485,6 +1694,8 @@ function renderThumbnail(strokes) {
 initTheme();
 initOfflineControls();
 registerServiceWorker();
+renderRosterList();
+populateDbTeamSelect();
 restoreFromUrl();
 
 })();
