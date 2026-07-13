@@ -7,7 +7,7 @@
 <style>
 @font-face {
     font-family: 'Nasalization';
-    src: url('Nasalization Rg.otf') format('opentype');
+    src: url('../assets/fonts/Nasalization Rg.otf') format('opentype');
     font-display: swap;
 }
 
@@ -31,6 +31,27 @@
     --b1-color: var(--primary-blue);
     --b2-color: var(--secondary-blue);
     --b3-color: #7FDBFF;
+
+    /* Theme-aware semantic tokens (light mode defaults) */
+    --bg-page: #f2f3f5;
+    --bg-card: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-input: #ffffff;
+    --text-main: var(--black);
+    --border-color: #e4e4e4;
+    --border-color-soft: #eeeeee;
+    --shadow-color: rgba(0,0,0,0.08);
+}
+
+html[data-theme="dark"] {
+    --bg-page: #14161a;
+    --bg-card: #1f2126;
+    --bg-surface: #262930;
+    --bg-input: #262930;
+    --text-main: #eaeaea;
+    --border-color: #383b42;
+    --border-color-soft: #383b42;
+    --shadow-color: rgba(0,0,0,0.35);
 }
 
 * { box-sizing: border-box; }
@@ -38,10 +59,11 @@
 html, body {
     margin: 0;
     padding: 0;
-    background: #f2f3f5;
-    color: var(--black);
+    background: var(--bg-page);
+    color: var(--text-main);
     font-family: 'Segoe UI', Roboto, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
+    transition: background var(--transition-speed), color var(--transition-speed);
 }
 
 h1, h2, h3, .brand-font, .tab-btn, .btn, label, .section-title {
@@ -118,11 +140,12 @@ main {
 .tab-panel.active { display: block; }
 
 .card {
-    background: var(--white);
+    background: var(--bg-card);
     border-radius: 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 10px var(--shadow-color);
     padding: 18px 20px;
     margin-bottom: 18px;
+    transition: background var(--transition-speed);
 }
 
 .section-title {
@@ -142,14 +165,15 @@ main {
 }
 
 input[type="text"], input[type="number"], select {
-    border: 2px solid #e4e4e4;
+    border: 2px solid var(--border-color);
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 14px;
     font-family: inherit;
     outline: none;
-    transition: border-color var(--transition-speed);
-    background: var(--white);
+    transition: border-color var(--transition-speed), background var(--transition-speed), color var(--transition-speed);
+    background: var(--bg-input);
+    color: var(--text-main);
 }
 input[type="text"]:focus, input[type="number"]:focus, select:focus {
     border-color: var(--primary-blue);
@@ -202,18 +226,18 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--white);
+    background: var(--bg-surface);
     border-radius: 10px;
     padding: 8px 10px;
     margin-bottom: 8px;
-    border: 1px solid #eee;
+    border: 1px solid var(--border-color-soft);
 }
 .team-swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink:0; }
 .team-info { flex:1; }
-.team-number { font-weight: 700; font-size: 15px; }
+.team-number { font-weight: 700; font-size: 15px; color: var(--text-main); }
 .team-epa { font-size: 12px; color: var(--dark-gray); }
 
-.win-prob-bar { height:8px; border-radius:4px; background:#eee; overflow:hidden; margin-top:8px; display:flex; }
+.win-prob-bar { height:8px; border-radius:4px; background: var(--border-color); overflow:hidden; margin-top:8px; display:flex; }
 .win-prob-bar > div:first-child { background: #E63946; }
 .win-prob-bar > div:last-child { background: var(--primary-blue); }
 .win-prob-label { font-size:11px; color:var(--dark-gray); display:flex; justify-content:space-between; margin-top:4px; }
@@ -271,7 +295,7 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
     font-size: 12px;
     color: var(--dark-gray);
 }
-.cycle-row button { border:none; background:#eee; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:700; }
+.cycle-row button { border:none; background: var(--border-color); color: var(--text-main); border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:700; }
 .cycle-row button:hover { background: var(--light-gray); color: var(--white); }
 
 .toolbar-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:16px; }
@@ -284,10 +308,10 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
     margin-top: 14px;
 }
 .gallery-item {
-    border: 2px solid #eee;
+    border: 2px solid var(--border-color-soft);
     border-radius: 10px;
     overflow: hidden;
-    background: var(--white);
+    background: var(--bg-surface);
     cursor: pointer;
     transition: border-color var(--transition-speed);
 }
@@ -307,19 +331,92 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
 }
 .modal-overlay.open { display:flex; }
 .modal {
-    background: var(--white);
+    background: var(--bg-card);
     border-radius: 14px;
     padding: 24px;
     max-width: 380px;
     width: 90%;
     text-align: center;
 }
-.modal h3 { margin-top:0; color: var(--black); }
-.modal img { width: 220px; height: 220px; margin: 12px auto; display:block; }
-.modal .url-box { font-size: 11px; word-break: break-all; background:#f5f5f5; border-radius:8px; padding:8px; margin-bottom: 12px; color: var(--dark-gray); }
+.modal h3 { margin-top:0; color: var(--text-main); }
+.modal img { width: 220px; height: 220px; margin: 12px auto; display:block; background:#fff; border-radius:6px; }
+.modal .url-box { font-size: 11px; word-break: break-all; background: var(--bg-surface); border-radius:8px; padding:8px; margin-bottom: 12px; color: var(--dark-gray); }
 .modal .modal-actions { display:flex; gap:10px; justify-content:center; }
 
 footer.tiny-note { text-align:center; color: var(--dark-gray); font-size: 11px; padding: 10px 0 30px; }
+
+/* ---------- Header controls: theme + offline ---------- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.status-dot-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--light-gray);
+    letter-spacing: 0.5px;
+}
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dark-gray); transition: background var(--transition-speed); }
+.status-dot.online { background: #3ac16b; box-shadow: 0 0 6px #3ac16b; }
+.status-dot.offline { background: #c1121f; box-shadow: 0 0 6px #c1121f; }
+
+.icon-toggle-btn {
+    background: transparent;
+    border: 2px solid var(--dark-gray);
+    color: var(--light-gray);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-speed) ease;
+}
+.icon-toggle-btn:hover { border-color: var(--primary-orange); color: var(--white); }
+
+.switch-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--light-gray);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+}
+.switch {
+    position: relative;
+    width: 38px;
+    height: 20px;
+    border-radius: 20px;
+    background: #444;
+    transition: background var(--transition-speed);
+    flex-shrink: 0;
+}
+.switch::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--white);
+    transition: transform var(--transition-speed);
+}
+.switch-wrap input { display:none; }
+.switch-wrap input:checked + .switch { background: var(--primary-orange); }
+.switch-wrap input:checked + .switch::after { transform: translateX(18px); }
+
+@media (max-width: 900px) {
+    .header-controls { gap: 10px; }
+    .switch-wrap span.label-text { display: none; }
+}
 </style>
 </head>
 <body>
@@ -332,6 +429,18 @@ footer.tiny-note { text-align:center; color: var(--dark-gray); font-size: 11px; 
     <div class="tabs">
         <button class="tab-btn active" data-tab="strategy">Match Strategy</button>
         <button class="tab-btn" data-tab="database">Auto Database</button>
+    </div>
+    <div class="header-controls">
+        <div class="status-dot-wrap" id="connStatusWrap" title="Live network connectivity">
+            <span class="status-dot" id="connStatusDot"></span>
+            <span id="connStatusLabel">Online</span>
+        </div>
+        <label class="switch-wrap" title="When on, the app will not attempt any network requests and will rely only on locally cached data">
+            <input type="checkbox" id="offlineModeToggle">
+            <span class="switch"></span>
+            <span class="label-text">Offline Mode</span>
+        </label>
+        <button class="icon-toggle-btn" id="themeToggleBtn" title="Toggle dark / light mode">&#9789;</button>
     </div>
 </header>
 
@@ -478,6 +587,114 @@ const SLOT_LABELS = {
 const STATBOTICS_BASE = "https://api.statbotics.io/v2";
 const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 const QR_TARGET_URL = "https://obstagoon2.github.io/Match_Planner/index.html";
+
+/* =========================================================================
+   THEME (dark / light)
+   ========================================================================= */
+const THEME_KEY = "frcTheme";
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    const btn = document.getElementById("themeToggleBtn");
+    if (btn) btn.innerHTML = theme === "dark" ? "&#9788;" : "&#9789;"; // sun when dark (tap to go light), moon when light
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+}
+
+function initTheme() {
+    let theme = null;
+    try { theme = localStorage.getItem(THEME_KEY); } catch (e) {}
+    if (!theme) theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    applyTheme(theme);
+}
+
+document.getElementById("themeToggleBtn").addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+});
+
+/* =========================================================================
+   OFFLINE MODE
+   ---------------------------------------------------------------------
+   Two layers of offline support:
+   1. A manual "Offline Mode" switch that forces the app to rely only on
+      data already cached in localStorage / IndexedDB, skipping network
+      calls entirely (useful on unreliable venue wifi).
+   2. Automatic connectivity detection (navigator.onLine + online/offline
+      events) that pauses the 5-minute Statbotics auto-refresh while
+      offline, and falls back to cached event data whenever a live fetch
+      fails, rather than showing a hard error.
+   ========================================================================= */
+const OFFLINE_MODE_KEY = "frcOfflineMode";
+
+function isOfflineModeOn() {
+    return document.getElementById("offlineModeToggle").checked;
+}
+
+function isNetworkAvailable() {
+    return navigator.onLine && !isOfflineModeOn();
+}
+
+function updateConnectivityBadge() {
+    const dot = document.getElementById("connStatusDot");
+    const label = document.getElementById("connStatusLabel");
+    if (isOfflineModeOn()) {
+        dot.className = "status-dot offline";
+        label.textContent = "Offline Mode";
+    } else if (navigator.onLine) {
+        dot.className = "status-dot online";
+        label.textContent = "Online";
+    } else {
+        dot.className = "status-dot offline";
+        label.textContent = "No Connection";
+    }
+}
+
+function initOfflineControls() {
+    const toggle = document.getElementById("offlineModeToggle");
+    let saved = false;
+    try { saved = localStorage.getItem(OFFLINE_MODE_KEY) === "1"; } catch (e) {}
+    toggle.checked = saved;
+    updateConnectivityBadge();
+
+    toggle.addEventListener("change", () => {
+        try { localStorage.setItem(OFFLINE_MODE_KEY, toggle.checked ? "1" : "0"); } catch (e) {}
+        updateConnectivityBadge();
+        if (!toggle.checked && navigator.onLine) {
+            // Coming back out of manual offline mode - refresh immediately.
+            if (state.eventCode) loadEvent(state.eventCode);
+            restartAutoRefresh();
+        } else {
+            if (state.refreshTimer) clearInterval(state.refreshTimer);
+        }
+    });
+
+    window.addEventListener("online", () => {
+        updateConnectivityBadge();
+        if (!isOfflineModeOn()) {
+            if (state.eventCode) loadEvent(state.eventCode);
+            restartAutoRefresh();
+        }
+    });
+    window.addEventListener("offline", () => {
+        updateConnectivityBadge();
+        if (state.refreshTimer) clearInterval(state.refreshTimer);
+    });
+}
+
+/* Registers the companion service worker (sw.js) so the app shell itself
+   (this page, field.png, and the font) can be opened with no connection
+   at all. Browsers require service worker scripts to be a real same-origin
+   file rather than inline code, so sw.js must sit next to this index.html
+   on GitHub Pages. Registration is best-effort and silently no-ops if
+   sw.js isn't present (e.g. when testing this file standalone). */
+function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {
+            console.info("Offline app-shell caching unavailable: sw.js not found next to index.html.");
+        });
+    });
+}
 
 /* =========================================================================
    INDEXEDDB - Auto Database storage
@@ -853,13 +1070,31 @@ const matchSelectEl = document.getElementById("matchSelect");
 async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
     eventStatusEl.textContent = "Loading...";
     eventStatusEl.className = "status-text";
+    const forceCacheOnly = fromCacheOnly || !isNetworkAvailable();
+    let usedCacheFallback = false;
+
     try {
         let data = loadEventCache(eventCode);
-        if (!fromCacheOnly) {
-            data = await fetchStatboticsEvent(eventCode);
-            saveEventCache(eventCode, data);
+        if (!forceCacheOnly) {
+            try {
+                data = await fetchStatboticsEvent(eventCode);
+                saveEventCache(eventCode, data);
+            } catch (netErr) {
+                // Network attempt failed - fall back to whatever is cached rather
+                // than hard-failing, since the person may just have flaky wifi.
+                console.warn("Live Statbotics fetch failed, falling back to cache:", netErr);
+                data = loadEventCache(eventCode);
+                usedCacheFallback = true;
+            }
+        } else {
+            usedCacheFallback = true;
         }
-        if (!data) throw new Error("No data available (offline and no cache).");
+
+        if (!data) {
+            throw new Error(forceCacheOnly
+                ? "No cached data for this event yet — connect once to download it."
+                : "No data available.");
+        }
 
         state.eventCode = eventCode;
         state.eventData = data;
@@ -876,8 +1111,14 @@ async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
         populateDbTeamSelect();
 
         const age = Math.round((Date.now() - data.fetchedAt) / 60000);
-        eventStatusEl.textContent = `Loaded ${eventCode} — ${state.matches.length} matches (updated ${age === 0 ? "just now" : age + "m ago"})`;
-        eventStatusEl.classList.add("ok");
+        const ageText = age === 0 ? "just now" : age + "m ago";
+        if (usedCacheFallback) {
+            eventStatusEl.textContent = `${forceCacheOnly ? "Offline" : "Couldn't refresh"} — showing cached data for ${eventCode} (updated ${ageText}), ${state.matches.length} matches`;
+            eventStatusEl.classList.add(forceCacheOnly ? "ok" : "err");
+        } else {
+            eventStatusEl.textContent = `Loaded ${eventCode} — ${state.matches.length} matches (updated ${ageText})`;
+            eventStatusEl.classList.add("ok");
+        }
 
         restartAutoRefresh();
     } catch (err) {
@@ -890,7 +1131,7 @@ async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
 function restartAutoRefresh() {
     if (state.refreshTimer) clearInterval(state.refreshTimer);
     state.refreshTimer = setInterval(() => {
-        if (state.eventCode) loadEvent(state.eventCode);
+        if (state.eventCode && isNetworkAvailable()) loadEvent(state.eventCode);
     }, AUTO_REFRESH_MS);
 }
 
@@ -1241,6 +1482,9 @@ function renderThumbnail(strokes) {
 /* =========================================================================
    INIT
    ========================================================================= */
+initTheme();
+initOfflineControls();
+registerServiceWorker();
 restoreFromUrl();
 
 })();
