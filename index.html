@@ -338,6 +338,17 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
 .roster-item .ractions button { border:none; background:none; cursor:pointer; font-size: 12px; color: var(--secondary-blue); }
 .roster-item .ractions button.del { color: #c1121f; }
 
+.manual-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 10px 0;
+}
+@media (max-width: 700px) { .manual-slots-grid { grid-template-columns: repeat(2, 1fr); } }
+.manual-slot-field { display:flex; flex-direction:column; gap:4px; }
+.manual-slot-field label { font-size: 11px; font-weight:700; letter-spacing: 0.5px; padding: 3px 6px; border-radius: 5px; color: var(--white); width: fit-content; }
+.manual-slot-field input { width: 100%; }
+
 /* ---------- Modal ---------- */
 .modal-overlay {
     display:none;
@@ -477,9 +488,32 @@ footer.tiny-note { text-align:center; color: var(--dark-gray); font-size: 11px; 
             <div class="section-title">Match Selection</div>
             <div class="row">
                 <select id="matchSelect" disabled>
-                    <option>Load an event first...</option>
+                    <option>No matches yet — load an event or add one below</option>
                 </select>
                 <button class="btn ghost small" id="refreshMatchesBtn" disabled>Refresh</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Manual Match Builder <span style="text-transform:none;font-weight:400;color:var(--dark-gray);">— plan a match with no connection at all</span></div>
+            <p class="status-text" style="margin: 4px 0 12px;">No signal yet? Type in a match label and the six team numbers as posted on the field/queue board. It's added to the Match Selection dropdown above immediately, and lines up with Statbotics data automatically once you're back online.</p>
+            <div class="row">
+                <input type="text" id="manualMatchLabel" placeholder="Match label (e.g. Qual 5)" style="max-width:220px;">
+            </div>
+            <div class="manual-slots-grid">
+                <div class="manual-slot-field"><label style="background:#E63946;">Red 1</label><input type="text" id="manualR1" placeholder="Team #"></div>
+                <div class="manual-slot-field"><label style="background:#C1121F;">Red 2</label><input type="text" id="manualR2" placeholder="Team #"></div>
+                <div class="manual-slot-field"><label style="background:#FF8300;">Red 3</label><input type="text" id="manualR3" placeholder="Team #"></div>
+                <div class="manual-slot-field"><label style="background:#2498DC;">Blue 1</label><input type="text" id="manualB1" placeholder="Team #"></div>
+                <div class="manual-slot-field"><label style="background:#1C7AB1;">Blue 2</label><input type="text" id="manualB2" placeholder="Team #"></div>
+                <div class="manual-slot-field"><label style="background:#7FDBFF;color:#12303c;">Blue 3</label><input type="text" id="manualB3" placeholder="Team #"></div>
+            </div>
+            <div class="row">
+                <button class="btn" id="manualMatchAddBtn">Add Match</button>
+                <span class="status-text" id="manualMatchStatus"></span>
+            </div>
+            <div class="gallery" id="manualMatchList" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); margin-top:14px;">
+                <div class="empty-note">No manual matches added yet.</div>
             </div>
         </div>
 
@@ -856,6 +890,8 @@ function extractWinProb(match) {
 }
 
 function matchLabel(m) {
+    if (!m) return "Match";
+    if (m.manual) return m.label || "Manual Match";
     const level = m.comp_level || m.level || "qm";
     const num = m.match_number ?? m.match_num ?? "?";
     const set = m.set_number ?? m.set_num;
@@ -1015,7 +1051,9 @@ class PathCanvas {
 const state = {
     eventCode: null,
     eventData: null,       // { teamEvents, matches, fetchedAt }
-    matches: [],
+    sbMatches: [],          // raw Statbotics match objects (sorted)
+    manualMatches: [],       // manually-entered matches, works with zero connectivity
+    matches: [],            // unified list rendered in the dropdown: {id,label,source,red,blue,raw}
     currentMatch: null,
     slots: {},             // slot -> { team:null, autoList:[], autoIndex:-1 }
     activeSlot: "R1",
@@ -1098,6 +1136,111 @@ document.querySelector("#dbColorToolbar .slot-btn").classList.add("active");
 refreshStrategySlotToolbar();
 
 /* =========================================================================
+   MANUAL MATCH BUILDER — fully offline, independent of Statbotics
+   ---------------------------------------------------------------------
+   Lets someone plan Match Strategy with zero connectivity: type in a
+   label and the six team numbers straight off a printed schedule or
+   queue board. Stored in localStorage under MANUAL_MATCHES_KEY, and
+   merged into the Match Selection dropdown by rebuildMatchList() above
+   alongside anything pulled from Statbotics. Since everything downstream
+   (alliance cards, canvas slots, saved autos, PNG export, QR code) keys
+   off team number rather than the data source, a manually-entered match
+   works exactly the same as a live one — it just won't have EPA/win-prob
+   data until an event is eventually loaded.
+   ========================================================================= */
+const MANUAL_MATCHES_KEY = "frcManualMatches";
+
+function getManualMatches() {
+    try { return JSON.parse(localStorage.getItem(MANUAL_MATCHES_KEY)) || []; }
+    catch (e) { return []; }
+}
+function saveManualMatches(list) {
+    try { localStorage.setItem(MANUAL_MATCHES_KEY, JSON.stringify(list)); }
+    catch (e) { console.warn("Could not save manual matches", e); }
+}
+
+function addManualMatch({ label, red, blue }) {
+    const list = getManualMatches();
+    const entry = {
+        id: Date.now(),
+        label: label && label.trim() ? label.trim() : `Manual Match ${list.length + 1}`,
+        red, blue
+    };
+    list.push(entry);
+    saveManualMatches(list);
+    state.manualMatches = list;
+    return entry;
+}
+
+function deleteManualMatch(id) {
+    const list = getManualMatches().filter(m => m.id !== id);
+    saveManualMatches(list);
+    state.manualMatches = list;
+}
+
+function renderManualMatchList() {
+    const listEl = document.getElementById("manualMatchList");
+    const list = getManualMatches();
+    if (!list.length) {
+        listEl.innerHTML = '<div class="empty-note">No manual matches added yet.</div>';
+        return;
+    }
+    listEl.innerHTML = "";
+    list.slice().reverse().forEach(m => {
+        const item = document.createElement("div");
+        item.className = "roster-item";
+        const teamsLine = `R: ${m.red.map(t => t || "--").join(", ")} &nbsp; B: ${m.blue.map(t => t || "--").join(", ")}`;
+        item.innerHTML = `
+            <div class="rn">${m.label}</div>
+            <div class="rname">${teamsLine}</div>
+            <div class="ractions">
+                <button class="load">Load</button>
+                <button class="del">Delete</button>
+            </div>`;
+        item.querySelector(".load").addEventListener("click", (e) => {
+            e.stopPropagation();
+            document.querySelector('.tab-btn[data-tab="strategy"]').click();
+            const idx = state.matches.findIndex(x => x.id === "manual-" + m.id);
+            if (idx >= 0) { matchSelectEl.value = idx; selectMatch(idx); }
+        });
+        item.querySelector(".del").addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete manual match "${m.label}"? (Saved auto paths for these teams are kept.)`)) {
+                deleteManualMatch(m.id);
+                rebuildMatchList();
+                populateMatchSelect();
+                renderManualMatchList();
+            }
+        });
+        listEl.appendChild(item);
+    });
+}
+
+document.getElementById("manualMatchAddBtn").addEventListener("click", () => {
+    const getVal = (id) => {
+        const raw = document.getElementById(id).value.trim();
+        if (!raw) return null;
+        const n = parseInt(raw.replace(/\D/g, ""), 10);
+        return isNaN(n) ? null : n;
+    };
+    const red = [getVal("manualR1"), getVal("manualR2"), getVal("manualR3")];
+    const blue = [getVal("manualB1"), getVal("manualB2"), getVal("manualB3")];
+    if (!red.some(Boolean) && !blue.some(Boolean)) {
+        alert("Enter at least one team number.");
+        return;
+    }
+    const label = document.getElementById("manualMatchLabel").value;
+    addManualMatch({ label, red, blue });
+    rebuildMatchList();
+    populateMatchSelect();
+    renderManualMatchList();
+
+    document.getElementById("manualMatchStatus").textContent = "Match added.";
+    document.getElementById("manualMatchStatus").className = "status-text ok";
+    ["manualMatchLabel","manualR1","manualR2","manualR3","manualB1","manualB2","manualB3"].forEach(id => document.getElementById(id).value = "");
+});
+
+/* =========================================================================
    EVENT LOADING (TAB 1)
    ========================================================================= */
 const eventStatusEl = document.getElementById("eventStatus");
@@ -1134,12 +1277,13 @@ async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
 
         state.eventCode = eventCode;
         state.eventData = data;
-        state.matches = (data.matches || []).slice().sort((a,b) => {
+        state.sbMatches = (data.matches || []).slice().sort((a,b) => {
             const order = { qm:0, ef:1, qf:2, sf:3, f:4 };
             const la = order[a.comp_level] ?? 0, lb = order[b.comp_level] ?? 0;
             if (la !== lb) return la - lb;
             return (a.match_number||0) - (b.match_number||0);
         });
+        rebuildMatchList();
 
         populateMatchSelect();
         matchSelectEl.disabled = false;
@@ -1151,10 +1295,10 @@ async function loadEvent(eventCode, { fromCacheOnly = false } = {}) {
         const age = Math.round((Date.now() - data.fetchedAt) / 60000);
         const ageText = age === 0 ? "just now" : age + "m ago";
         if (usedCacheFallback) {
-            eventStatusEl.textContent = `${forceCacheOnly ? "Offline" : "Couldn't refresh"} — showing cached data for ${eventCode} (updated ${ageText}), ${state.matches.length} matches`;
+            eventStatusEl.textContent = `${forceCacheOnly ? "Offline" : "Couldn't refresh"} — showing cached data for ${eventCode} (updated ${ageText}), ${state.sbMatches.length} matches`;
             eventStatusEl.classList.add(forceCacheOnly ? "ok" : "err");
         } else {
-            eventStatusEl.textContent = `Loaded ${eventCode} — ${state.matches.length} matches (updated ${ageText})`;
+            eventStatusEl.textContent = `Loaded ${eventCode} — ${state.sbMatches.length} matches (updated ${ageText})`;
             eventStatusEl.classList.add("ok");
         }
 
@@ -1181,18 +1325,59 @@ document.getElementById("refreshMatchesBtn").addEventListener("click", () => {
     if (state.eventCode) loadEvent(state.eventCode);
 });
 
+function rebuildMatchList() {
+    const sbEntries = state.sbMatches.map((raw, i) => ({
+        id: "sb-" + i,
+        label: matchLabel(raw),
+        source: "sb",
+        red: extractAllianceTeams(raw, "red"),
+        blue: extractAllianceTeams(raw, "blue"),
+        raw
+    }));
+    const manualEntries = state.manualMatches.map(m => ({
+        id: "manual-" + m.id,
+        label: m.label,
+        source: "manual",
+        red: m.red,
+        blue: m.blue,
+        raw: null
+    }));
+    state.matches = sbEntries.concat(manualEntries);
+}
+
 function populateMatchSelect() {
     matchSelectEl.innerHTML = "";
-    state.matches.forEach((m, i) => {
-        const opt = document.createElement("option");
-        opt.value = i;
-        opt.textContent = matchLabel(m);
-        matchSelectEl.appendChild(opt);
-    });
-    if (state.matches.length) {
-        matchSelectEl.value = 0;
-        selectMatch(0);
+    if (!state.matches.length) {
+        matchSelectEl.innerHTML = '<option>No matches yet — load an event or add one below</option>';
+        matchSelectEl.disabled = true;
+        state.currentMatch = null;
+        return;
     }
+    matchSelectEl.disabled = false;
+
+    const sbIdx = [], manualIdx = [];
+    state.matches.forEach((m, i) => (m.source === "sb" ? sbIdx : manualIdx).push(i));
+
+    const addGroup = (label, indices) => {
+        if (!indices.length) return;
+        const group = document.createElement("optgroup");
+        group.label = label;
+        indices.forEach(i => {
+            const opt = document.createElement("option");
+            opt.value = i;
+            opt.textContent = state.matches[i].label;
+            group.appendChild(opt);
+        });
+        matchSelectEl.appendChild(group);
+    };
+    addGroup("Event Matches (Statbotics)", sbIdx);
+    addGroup("Manual Matches (Offline)", manualIdx);
+
+    // Keep the current selection if it still exists, otherwise default to the first entry.
+    const keepIndex = state.currentMatch ? state.matches.findIndex(m => m.id === state.currentMatch.id) : -1;
+    const targetIndex = keepIndex >= 0 ? keepIndex : 0;
+    matchSelectEl.value = targetIndex;
+    selectMatch(targetIndex);
 }
 
 matchSelectEl.addEventListener("change", () => selectMatch(Number(matchSelectEl.value)));
@@ -1202,8 +1387,8 @@ async function selectMatch(index) {
     if (!m) return;
     state.currentMatch = m;
 
-    const redTeams = extractAllianceTeams(m, "red");
-    const blueTeams = extractAllianceTeams(m, "blue");
+    const redTeams = m.red;
+    const blueTeams = m.blue;
     const assignment = { R1: redTeams[0], R2: redTeams[1], R3: redTeams[2], B1: blueTeams[0], B2: blueTeams[1], B3: blueTeams[2] };
 
     for (const key of SLOT_KEYS) {
@@ -1258,7 +1443,7 @@ function renderAllianceCards(match, redTeams, blueTeams) {
     if (!redTeams.length) redEl.innerHTML = '<div class="empty-note">No team data for this match.</div>';
     if (!blueTeams.length) blueEl.innerHTML = '<div class="empty-note">No team data for this match.</div>';
 
-    const p = extractWinProb(match);
+    const p = match.source === "sb" ? extractWinProb(match.raw) : null;
     const redPct = p !== null ? Math.round(p * 100) : null;
     document.getElementById("redWinPct").textContent = redPct !== null ? redPct + "%" : "--%";
     document.getElementById("blueWinPct").textContent = redPct !== null ? (100 - redPct) + "%" : "--%";
@@ -1319,7 +1504,7 @@ function buildFileName() {
         const team = state.slots[k].team || "TBD";
         return `${prefixMap[k]}-${team}`;
     });
-    const matchNum = state.currentMatch ? matchLabel(state.currentMatch).replace(/\s+/g, "") : "M00";
+    const matchNum = state.currentMatch ? state.currentMatch.label.replace(/\s+/g, "") : "M00";
     return `${matchNum}_${parts.join("_")}.png`;
 }
 
@@ -1696,6 +1881,10 @@ initOfflineControls();
 registerServiceWorker();
 renderRosterList();
 populateDbTeamSelect();
+state.manualMatches = getManualMatches();
+rebuildMatchList();
+populateMatchSelect();
+renderManualMatchList();
 restoreFromUrl();
 
 })();
